@@ -1,25 +1,36 @@
-# elm327obd — OBD·TUI
+# elm327obd: OBD2 car diagnostics in your terminal
 
-Terminal OBD-II diagnostics for ELM327 **WiFi** adapters, built for macOS.
-Live dashboard, trouble codes, readiness monitors, freeze frame, VIN/calibration
-info, manufacturer (Mode 22) PIDs, CSV logging and a raw command console.
+[![CI](https://github.com/jeffcaldwellca/elm327-obd/actions/workflows/ci.yml/badge.svg)](https://github.com/jeffcaldwellca/elm327-obd/actions/workflows/ci.yml)
+[![License: GPL v2+](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+![macOS | Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)
 
-```
- ◉ OBD·TUI   ● ONLINE  192.168.0.10:35000  ELM327 v1.5  ISO 15765-4 CAN (11 bit, 500 kbaud)  ⚡14.1V  ↻ 12.6 Hz
- ① Dashboard  ② Live data  ③ Trouble codes  ④ Vehicle  ⑤ Extended (Mode 22)  ⑥ Console
- ╭─ Engine RPM ───────────────╮ ╭─ Vehicle speed ────────────╮ ╭─ Coolant temperature ──────╮
- │ ╺━┓╺┓ ╺━┓┏━┓               │ │ ┏━╸╺┓  ┏━┓                 │ │ ┏━┓╺┓  ╻ ╻                 │
- │  ━┫ ┃ ┏━┛┣━┫               │ │ ┗━┓ ┃  ┃ ┃                 │ │ ┗━┫ ┃  ┗━┫                 │
- │ ╺━┛╺┻╸┗━╸┗━┛ rpm           │ │ ╺━┛╺┻╸•┗━┛ km/h            │ │ ╺━┛╺┻╸•  ╹ °C              │
- │ ━━━━━━━━━━━━━━━━━━━━━━━━   │ │ ━━━━━━━━━━━━━━━━━━━━━━━    │ │ ━━━━━━━━━━━━━━━━━━━━━━━━   │
- │ ▁▁▂▂▃▃▄▄▅▅▆▆▇▇███████████  │ │ ▁▁▂▂▃▃▄▄▅▅▆▆▇▇██████████   │ │ ▁▁▄▄▄▄▄▄█▄█▄▄▄██████████   │
- ╰────────────── ▼819 ▲3,884 ─╯ ╰──────────────── ▼1.9 ▲67 ─╯ ╰────────────── ▼66 ▲91.4 ─╯
-```
+A free, open-source OBD-II scanner for your terminal. Plug a cheap **ELM327 WiFi** adapter into
+your car, join its Wi-Fi, and get a live dashboard, check-engine-light trouble codes explained
+in plain English, readiness monitors, freeze frame, VIN/calibration info, manufacturer
+(Mode 22) PIDs, CSV logging and a raw command console. Runs on macOS and Linux.
+
+![Live dashboard: RPM, speed, coolant, load, throttle, MAP, fuel trims and voltage with sparklines](https://raw.githubusercontent.com/jeffcaldwellca/elm327-obd/main/docs/images/dashboard.png)
+
+## Features
+
+- **Live dashboard** of big-digit gauges with sparklines and min/max, refreshing at 10+ Hz over Wi-Fi
+- **Trouble codes (DTCs)** from every module: stored, pending and permanent, sorted by severity,
+  with likely causes, what to check and the sensors to watch
+- **Offline code lookup** with no car connected: `obd explain P0420`
+- **Readiness monitors**, freeze frame, VIN, calibration IDs/CVNs: handy before an emissions inspection
+- **Mode 22 / UDS manufacturer PIDs** with profiles for Ford, GM and Hyundai/Kia, plus a read-only DID scanner
+- **CSV data logging** and a raw AT/OBD **console** that decodes replies and asks before risky commands
+- **Demo mode** (`obd --demo`) and a built-in **ELM327 emulator** for trying it or testing other tools
+  without a car
+
+![Trouble codes tab with severity, likely causes and checks for the selected code](https://raw.githubusercontent.com/jeffcaldwellca/elm327-obd/main/docs/images/trouble-codes.png)
 
 ## Install
 
 ```bash
-cd ~/Development/elm327-obd
+git clone https://github.com/jeffcaldwellca/elm327-obd.git
+cd elm327-obd
 ./setup.sh            # virtualenv + dependencies, links ~/.local/bin/obd
 ./setup.sh --test     # same, and runs the test suite
 ./setup.sh --no-link  # don't create the ~/.local/bin/obd symlink
@@ -43,8 +54,8 @@ then run `.venv/bin/obd`.
 
 1. Plug the adapter into the OBD port (under the dash, driver side). Turn the ignition **ON** —
    engine running or not.
-2. On the Mac, join the adapter's Wi-Fi network (commonly `WiFi_OBDII`, `V-LINK`, `OBDII`,
-   password none or `12345678`). The Mac will have no internet while joined — that's normal.
+2. On your computer, join the adapter's Wi-Fi network (commonly `WiFi_OBDII`, `V-LINK`, `OBDII`,
+   password none or `12345678`). Your computer will have no internet while joined — that's normal.
 3. Run `obd`. It scans the usual addresses (`192.168.0.10:35000` is most common) and connects
    automatically when it finds exactly one adapter. The last good address is remembered.
 
@@ -165,10 +176,9 @@ means stop.
 `src/elm327obd/data/python_obd_dtc.tsv` is derived from
 [python-OBD](https://github.com/brendan-w/python-OBD) (GPL-2.0; license in
 `data/LICENSE.python-OBD`). It was converted to TSV and 48 OCR typos ("lntake") were fixed;
-regenerate it with `tools/import_python_obd.py`. For personal use this changes nothing. **If you
-distribute this app** with that file included, the combined work has to go out under
-GPL-compatible terms (GPL-2.0-or-later). To avoid that, delete the file: names then fall back
-to the built-in list and code categories.
+regenerate it with `tools/import_python_obd.py`. This project is itself GPL-2.0-or-later, so
+the two licenses are compatible. If you want to reuse this code under other terms, delete the
+file: names then fall back to the built-in list and code categories.
 
 ## What an ELM327 can't do: tuning
 
@@ -201,3 +211,15 @@ module configuration with a suitable adapter.
 Layout: `transport.py` (TCP + prompt handling) → `protocol.py` (frame / ISO-TP parsing) →
 `elm.py` (client: Mode 01/02/03/04/07/09/0A/22) → `tui/` (Textual app). `pids.py`, `dtc.py`
 and `profiles.py` hold the decoders.
+
+## Contributing
+
+Bug reports and pull requests are welcome. ELM327 clones vary a lot, so reports of which
+adapters and vehicles work (or don't) are especially useful: use the
+[adapter / vehicle report](https://github.com/jeffcaldwellca/elm327-obd/issues/new?template=adapter-report.yml)
+issue template.
+
+## License
+
+[GPL-2.0-or-later](LICENSE). The bundled python-OBD code-name data is GPL-2.0 as well; see
+[Third-party data and licensing](#third-party-data-and-licensing).

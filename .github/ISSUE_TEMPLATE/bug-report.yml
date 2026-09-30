@@ -1,0 +1,21 @@
+name: Bug report
+description: Something is broken or wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Paste any traceback.
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Adapter and vehicle
+      placeholder: e.g. ELM327 v1.5 WiFi clone, 2015 Hyundai Santa Fe (or "demo mode")
+  - type: input
+    id: env
+    attributes:
+      label: OS, Python and elm327obd version
+      placeholder: e.g. macOS 26, Python 3.14, 0.1.0

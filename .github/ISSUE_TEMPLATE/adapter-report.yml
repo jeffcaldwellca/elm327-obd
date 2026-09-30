@@ -1,0 +1,51 @@
+name: Adapter / vehicle report
+description: Tell us how elm327obd works with your ELM327 adapter and car (good or bad).
+labels: [compatibility]
+body:
+  - type: input
+    id: adapter
+    attributes:
+      label: Adapter
+      description: Brand/model and where you bought it, if known.
+      placeholder: e.g. Vgate iCar 2 WiFi, unbranded "OBDII" WiFi dongle
+    validations:
+      required: true
+  - type: input
+    id: elm-version
+    attributes:
+      label: Reported ELM327 version
+      description: Shown in the status bar, or send `ATI` in the Console tab.
+      placeholder: e.g. ELM327 v1.5
+  - type: input
+    id: vehicle
+    attributes:
+      label: Vehicle
+      placeholder: e.g. 2015 Hyundai Santa Fe 2.4L
+    validations:
+      required: true
+  - type: input
+    id: protocol
+    attributes:
+      label: Protocol
+      description: Shown in the status bar or on the Vehicle tab.
+      placeholder: e.g. ISO 15765-4 CAN (11 bit, 500 kbaud)
+  - type: dropdown
+    id: result
+    attributes:
+      label: Overall
+      options:
+        - Everything I tried works
+        - Works with problems
+        - Doesn't connect / no data
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What worked, what didn't, poll rate (Hz), whether batching fell back to single-PID mode, and any errors.
+  - type: input
+    id: env
+    attributes:
+      label: OS and elm327obd version
+      placeholder: e.g. macOS 26, elm327obd 0.1.0
