@@ -1,0 +1,27 @@
+name = "GM / Chevrolet / GMC"
+description = """
+GM ECM is at 7E0 (reply 7E8); the TCM is usually at 7E2 (reply 7EA) on newer
+trucks and 7E1 (reply 7E9) on some cars. Entries marked verified=false are
+community-sourced — confirm before trusting. Older GMLAN modules may use
+service 1A instead of 22 for identification.
+"""
+
+[[pid]]
+name = "ECM VIN (UDS F190)"
+header = "7E0"
+command = "22F190"
+formula = "ascii"
+verified = true
+notes = "Standard ISO 14229 identifier (newer GM Global B vehicles)."
+
+[[pid]]
+name = "Transmission fluid temp"
+header = "7E2"
+rx = "7EA"
+command = "221940"
+formula = "A - 40"
+unit = "°C"
+min = -40
+max = 150
+verified = false
+notes = "Community-sourced for 6L/8L/10L. If no reply try header 7E1/rx 7E9 or 7E0/7E8."

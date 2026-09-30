@@ -1,0 +1,318 @@
+/* OBD·TUI theme */
+
+Screen {
+    background: #121212;
+}
+
+#status {
+    dock: top;
+    height: 1;
+    background: #1c1c1c;
+    padding: 0 0;
+}
+
+TabbedContent {
+    height: 1fr;
+}
+
+TabPane {
+    padding: 0 1;
+}
+
+/* ---------- dashboard ---------- */
+
+#dash-grid {
+    grid-size: 4;
+    grid-gutter: 1 1;
+    grid-rows: 9;
+    height: auto;
+    padding: 1 0;
+}
+
+.gauge {
+    height: 9;
+    border: round #3a3a3a;
+    border-title-color: #d0d0d0;
+    border-title-style: bold;
+    border-subtitle-color: #6c6c6c;
+    padding: 0 1;
+    background: #181818;
+}
+
+.gauge:hover {
+    border: round #5fd7af;
+}
+
+.gauge.stale {
+    border: round #5f3a3a;
+}
+
+.gauge.stale .gauge-value {
+    color: #6c6c6c;
+}
+
+.gauge-top {
+    height: 3;
+}
+
+.gauge-value {
+    width: auto;
+    color: #5fd7af;
+    text-style: bold;
+}
+
+.gauge-unit {
+    width: 1fr;
+    height: 3;
+    content-align: left bottom;
+    color: #8a8a8a;
+    padding-left: 1;
+}
+
+.gauge-bar {
+    height: 1;
+    margin-top: 1;
+}
+
+.gauge-spark {
+    height: 2;
+}
+
+.gauge-spark > .sparkline--max-color {
+    color: #87afff;
+}
+
+.gauge-spark > .sparkline--min-color {
+    color: #3a5f87;
+}
+
+.empty {
+    color: #8a8a8a;
+    padding: 2;
+}
+
+/* ---------- tables ---------- */
+
+DataTable {
+    height: 1fr;
+    background: #161616;
+}
+
+DataTable > .datatable--header {
+    background: #262626;
+    color: #87afff;
+    text-style: bold;
+}
+
+/* ---------- codes ---------- */
+
+#mil-banner {
+    height: 3;
+    content-align: left middle;
+    padding: 0 2;
+    margin: 1 0;
+    background: #1c1c1c;
+    border-left: thick #5fd7af;
+}
+
+#codes-body {
+    height: 1fr;
+}
+
+#dtc-table {
+    width: 2fr;
+}
+
+#freeze-panel {
+    width: 1fr;
+    min-width: 34;
+    padding: 0 2;
+    border-left: vkey #3a3a3a;
+}
+
+.actions {
+    height: 3;
+    margin-top: 1;
+}
+
+.actions Button {
+    margin-right: 2;
+}
+
+/* ---------- vehicle ---------- */
+
+#vehicle-body {
+    height: auto;
+}
+
+#vehicle-info, #readiness {
+    width: 1fr;
+    padding: 1 2;
+    margin: 1 1 0 0;
+    background: #181818;
+    border: round #3a3a3a;
+    height: auto;
+}
+
+/* ---------- extended ---------- */
+
+#ext-top {
+    height: 3;
+    margin-top: 1;
+}
+
+#profile-select {
+    width: 30;
+}
+
+#profile-desc {
+    width: 1fr;
+    padding: 0 2;
+    height: 3;
+    overflow: hidden;
+}
+
+#ext-table {
+    height: 1fr;
+    margin-top: 1;
+}
+
+#did-scan {
+    height: 3;
+    margin-top: 1;
+}
+
+#did-scan Label {
+    padding: 1 1 0 0;
+    color: #87afff;
+    text-style: bold;
+}
+
+#did-scan Input {
+    width: 12;
+}
+
+#did-scan Button {
+    margin: 0 1;
+}
+
+#scan-progress {
+    padding: 1 1 0 1;
+}
+
+#scan-table {
+    height: 1fr;
+}
+
+/* ---------- console ---------- */
+
+#console-log {
+    height: 1fr;
+    background: #0c0c0c;
+    border: round #3a3a3a;
+    padding: 0 1;
+    margin-top: 1;
+}
+
+#console-input {
+    border: tall #5fd7af;
+    margin-bottom: 0;
+}
+
+/* ---------- connect screen ---------- */
+
+ConnectScreen {
+    align: center middle;
+}
+
+#connect-box {
+    width: 96;
+    max-width: 100%;
+    height: auto;
+    max-height: 100%;
+    border: round #5fd7af;
+    padding: 1 2;
+    background: #161616;
+}
+
+#logo {
+    width: 100%;
+    content-align: center middle;
+    margin-bottom: 1;
+}
+
+#steps {
+    margin-bottom: 1;
+}
+
+#wifi {
+    margin-bottom: 1;
+}
+
+#candidates {
+    height: 12;
+}
+
+#connect-actions {
+    height: 3;
+    margin-top: 1;
+}
+
+#manual {
+    width: 1fr;
+}
+
+#connect-actions Button {
+    margin-left: 1;
+}
+
+#connect-log {
+    height: 8;
+    margin-top: 1;
+    background: #0c0c0c;
+}
+
+/* ---------- dialogs ---------- */
+
+ConfirmScreen, PidPickerScreen {
+    align: center middle;
+    background: #000000 60%;
+}
+
+#dialog, #picker {
+    width: 84;
+    max-width: 95%;
+    height: auto;
+    max-height: 90%;
+    border: thick #5fd7af;
+    background: #1c1c1c;
+    padding: 1 2;
+}
+
+#dialog.danger {
+    border: thick #ff5f5f;
+}
+
+#dialog-title {
+    text-style: bold;
+    width: 100%;
+    margin-bottom: 1;
+}
+
+#dialog.danger #dialog-title {
+    color: #ff8787;
+}
+
+#picker-list {
+    height: 24;
+}
+
+#dialog-buttons {
+    height: 3;
+    margin-top: 1;
+    align-horizontal: right;
+}
+
+#dialog-buttons Button {
+    margin-left: 2;
+}

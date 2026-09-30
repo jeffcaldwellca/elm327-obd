@@ -1,0 +1,33 @@
+name = "Ford / Lincoln"
+description = """
+Ford PCM is usually at 7E0 (reply 7E8), TCM at 7E1 on some models, BCM 726,
+ABS 760, IPC 720. Entries marked verified=false are community-sourced values —
+confirm against a known reading before trusting them. FORScan is the gold
+standard for Ford module-level work; this profile only reads data.
+"""
+
+[[pid]]
+name = "PCM VIN (UDS F190)"
+header = "7E0"
+command = "22F190"
+formula = "ascii"
+verified = true
+notes = "Standard ISO 14229 identifier."
+
+[[pid]]
+name = "PCM software part number (UDS F188)"
+header = "7E0"
+command = "22F188"
+formula = "ascii"
+notes = "Standard ISO 14229 identifier; Ford calibration/strategy often lives here."
+
+[[pid]]
+name = "Transmission fluid temp"
+header = "7E0"
+command = "221E1C"
+formula = "s16(A, B) / 16"
+unit = "°C"
+min = -40
+max = 150
+verified = false
+notes = "Widely shared for 6R/6F/10R transmissions; confirm on your vehicle."

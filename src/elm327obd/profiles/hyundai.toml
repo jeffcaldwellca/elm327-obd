@@ -1,0 +1,31 @@
+name = "Hyundai / Kia"
+description = """
+Hyundai/Kia engine ECU is at 7E0 (reply 7E8). EV/hybrid battery management
+(BMS) is commonly at 7E4 (reply 7EC). Mode 22 layouts differ per model, so
+block reads are shown as raw hex — use the DID scanner to explore, then add
+decoded entries to ~/.config/elm327obd/profiles/hyundai.toml.
+"""
+
+[[pid]]
+name = "ECU VIN (UDS F190)"
+header = "7E0"
+command = "22F190"
+formula = "ascii"
+verified = true
+notes = "Standard ISO 14229 identifier."
+
+[[pid]]
+name = "ECU software version (UDS F195)"
+header = "7E0"
+command = "22F195"
+formula = "ascii"
+notes = "Standard ISO 14229 identifier."
+
+[[pid]]
+name = "EV/HEV BMS data block 0101 (raw)"
+header = "7E4"
+rx = "7EC"
+command = "220101"
+formula = "hex"
+verified = false
+notes = "EV/hybrid models only (Kona/Ioniq/Niro/EV6...). Byte layout varies by model."
