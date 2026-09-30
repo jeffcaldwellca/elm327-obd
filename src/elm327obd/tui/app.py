@@ -787,7 +787,7 @@ class ObdApp(App):
         t.add_row("VIN", info.vin or "not reported")
         t.add_row("Protocol", elm.protocol_name)
         t.add_row("Adapter", f"{elm.version} @ {elm.transport.address}")
-        t.add_row("Batch requests", "yes" if elm.batching else "no (single PID)")
+        t.add_row("PIDs per request", str(elm.batch_size) if is_can(elm.protocol) else "1")
         for pid in (0x1C, 0x51, 0xA6, 0x31, 0x4E, 0x21):
             if pid in extras:
                 spec = P.PIDS[pid]

@@ -36,6 +36,10 @@ RESET_AT = re.compile(r"^AT(?:Z|WS|D)$")  # restore default header/filter
 
 INIT_SEQUENCE = ("ATE0", "ATL0", "ATS1", "ATH1", "ATAT1", "ATCAF1")
 
+# Mode 01 PIDs per request. Start at the J1979 maximum and step down when an
+# adapter fails a multi-PID request (some clones manage 2 but hang on 6).
+BATCH_STEPS = (6, 2, 1)
+
 
 @dataclass
 class VehicleInfo:
@@ -53,7 +57,7 @@ class ELM327:
         self.ecus: list[str] = []
         self.supported: set[int] = set()
         self.vehicle_ok = False
-        self.batching = True
+        self.batch_size = BATCH_STEPS[0]
         # Header / receive filter currently programmed into the adapter
         # (None = adapter default, i.e. functional broadcast / auto filter).
         self._header: str | None = None
@@ -209,19 +213,25 @@ class ELM327:
         return supported
 
     async def read_pids(self, pids: list[int]) -> dict[int, bytes]:
-        """Read Mode 01 PIDs, batching up to 6 per request on CAN."""
+        """Read Mode 01 PIDs, batching up to ``batch_size`` per request on CAN."""
         results: dict[int, bytes] = {}
-        size = 6 if (self.batching and is_can(self.protocol)) else 1
+        size = self.batch_size if is_can(self.protocol) else 1
         for i in range(0, len(pids), size):
             chunk = pids[i : i + size]
             try:
                 msgs = await self.request("01" + "".join(f"{p:02X}" for p in chunk))
             except NoData:
                 continue
+            except TransportError:
+                # Some clones hang (no reply, no prompt) on multi-PID requests
+                # instead of answering; the transport has already resynced.
+                if len(chunk) == 1 or not self.transport.connected:
+                    raise
+                msgs = []
             got = _parse_mode01(msgs)
             if len(chunk) > 1 and not got:
-                # Some clones choke on multi-PID requests: fall back for good.
-                self.batching = False
+                # Some clones choke on multi-PID requests: use smaller ones for good.
+                self.batch_size = next(n for n in BATCH_STEPS if n < len(chunk))
                 return results | await self.read_pids(pids[i:])
             results.update(got)
         return results

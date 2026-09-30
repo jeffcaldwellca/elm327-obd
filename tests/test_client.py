@@ -37,7 +37,25 @@ async def test_batched_read(elm):
     values = await elm.read_decoded([0x0C, 0x0D, 0x05, 0x04, 0x11, 0x0B, 0x0F])
     assert set(values) == {0x0C, 0x0D, 0x05, 0x04, 0x11, 0x0B, 0x0F}
     assert 600 < values[0x0C] < 4500
-    assert elm.batching
+    assert elm.batch_size == 6
+
+
+@pytest.mark.parametrize("max_batch", [2, 1])
+async def test_batch_timeout_steps_down(max_batch):
+    # Real ELM327 v1.5 WiFi clone on a 2015 Santa Fe: 2-PID requests work, a
+    # 6-PID request gets no reply at all (not even a prompt) until interrupted.
+    server = await serve("127.0.0.1", 0, Vehicle(max_batch=max_batch))
+    client = ELM327(ElmTransport("127.0.0.1", server.sockets[0].getsockname()[1]))
+    try:
+        await client.connect()
+        pids = [0x0C, 0x0D, 0x05, 0x04, 0x11, 0x0B, 0x0F]
+        values = await client.read_decoded(pids)
+        assert set(values) == set(pids)
+        assert client.batch_size == max_batch
+        assert set(await client.read_decoded(pids)) == set(pids)  # stays in sync afterwards
+    finally:
+        await client.close()
+        server.close()
 
 
 async def test_dtcs_and_clear(elm, emu):

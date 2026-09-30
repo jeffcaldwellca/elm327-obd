@@ -36,6 +36,8 @@ class Vehicle:
     no_atd: bool = False  # clone that answers "?" to ATD (set defaults)
     # Extra reply delay (seconds) per command, e.g. {"010C": 0.5}, to simulate slow ECUs.
     slow: dict[str, float] = field(default_factory=dict)
+    # Clone that hangs (no reply, no prompt) on Mode 01 requests for more PIDs than this.
+    max_batch: int | None = None
 
     @property
     def t(self) -> float:
@@ -373,6 +375,8 @@ async def _client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ve
                 is_obd = not cmd.startswith("AT")
                 await asyncio.sleep(random.uniform(0.02, 0.05) if is_obd else 0.005)
                 await asyncio.sleep(vehicle.slow.get(cmd, 0.0))
+                if vehicle.max_batch and cmd.startswith("01") and len(cmd) > 2 + 2 * vehicle.max_batch:
+                    continue
                 writer.write(elm.handle(text).encode("ascii"))
                 await writer.drain()
     except (ConnectionError, OSError):
