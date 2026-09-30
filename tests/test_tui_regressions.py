@@ -181,3 +181,65 @@ async def test_views_rebuilt_after_auto_reconnect():
         await pilot.press("1")
         assert await wait_until(pilot, lambda: app.store.rate > 0)
     server.close()
+
+
+async def test_rapid_tab_switching_never_bounces():
+    """Keys pressed with no pause at all, so focus calls are still in flight."""
+    _, server, port = await start_emulator()
+    app = await _app_on(port)
+    async with app.run_test(size=SIZE) as pilot:
+        assert await wait_until(pilot, lambda: app.elm is not None and app.elm.vehicle_ok)
+        sequence = "5251535242541524" * 3
+        for key in sequence:
+            await pilot.press(key)
+        await pilot.pause(0.5)  # let every queued focus/activation message land
+        assert app.active_tab == {"1": "dash", "2": "live", "3": "codes", "4": "vehicle", "5": "ext"}[sequence[-1]]
+    server.close()
+
+
+async def test_late_pane_focus_message_does_not_switch_tab():
+    """Deterministic version of the race: a focus event for the tab the user
+    just left arrives after they've moved on. Stock TabbedContent obeys it."""
+    from textual.widgets import TabPane
+
+    app = ObdApp()
+    async with app.run_test(size=SIZE) as pilot:
+        await pilot.pause(0.2)
+        await pilot.press("escape")  # dismiss the connect screen
+        app.action_tab("live")
+        await pilot.pause(0.2)
+        ext_pane = app.query_one("#ext", TabPane)
+        ext_pane.post_message(TabPane.Focused(ext_pane))  # the late, stale message
+        await pilot.pause(0.3)
+        assert app.active_tab == "live"
+
+
+async def test_codes_tab_severity_sorting_and_detail_panel():
+    _, server, port = await start_emulator()
+    app = await _app_on(port)
+    async with app.run_test(size=(160, 50)) as pilot:
+        assert await wait_until(pilot, lambda: app.elm is not None and app.elm.vehicle_ok)
+        await pilot.press("3")
+        table = app.query_one("#dtc-table", DataTable)
+        assert await wait_until(pilot, lambda: table.row_count == 5)
+        # Most urgent first: SOON codes, then the LOW catalyst codes last.
+        assert [d.guide.severity for d in app._codes] == ["soon", "soon", "soon", "low", "low"]
+        assert app._codes[0].code == "P0301" and app._codes[-1].kind == "Permanent"
+        banner = str(app.query_one("#mil-banner").render())
+        assert "Most urgent" in banner and "P0301" in banner
+
+        def detail_text() -> str:
+            from rich.console import Console
+
+            console = Console(width=60, record=True)
+            console.print(app.query_one("#dtc-detail").content)
+            return console.export_text()
+
+        assert await wait_until(pilot, lambda: "Engine RPM" in detail_text() and "rpm" in detail_text())
+        text = detail_text()
+        assert "Likely causes" in text and "ignition coil" in text.lower()
+        assert "Stored – a confirmed fault" in text
+        # Moving the cursor updates the panel.
+        await pilot.press("down")
+        assert await wait_until(pilot, lambda: "P0741" in detail_text())
+    server.close()

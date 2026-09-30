@@ -294,3 +294,14 @@ def test_console_dtc_annotation_by_protocol(protocol, lines, codes):
     app.elm = SimpleNamespace(format_dirty=False, protocol=protocol)
     notes = app.annotate("03", lines)
     assert [n.split()[1].rstrip(":") for n in notes] == codes
+
+
+@pytest.mark.parametrize("output,gw", [
+    ("   route to: default\\ndestination: default\\n    gateway: 192.168.0.10\\n  interface: en0\\n", "192.168.0.10"),
+    ("default via 192.168.0.10 dev wlan0 proto dhcp src 192.168.0.11 metric 600\\n", "192.168.0.10"),
+    ("", None),
+])
+def test_parse_gateway_macos_and_linux(output, gw):
+    from elm327obd.scanner import parse_gateway
+
+    assert parse_gateway(output) == gw

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import csv
+import re
+import tomllib
 from dataclasses import dataclass
+from importlib import resources
 from pathlib import Path
 
 LETTERS = "PCBU"
@@ -20,6 +23,10 @@ class Dtc:
     @property
     def description(self) -> str:
         return describe(self.code)
+
+    @property
+    def guide(self) -> Guide:
+        return guide(self.code)
 
 
 def decode_dtc(hi: int, lo: int) -> str:
@@ -235,8 +242,16 @@ P0_SUBSYSTEM = {
     "C": "Hybrid propulsion",
 }
 
-_user_codes: dict[str, str] | None = None
 USER_DTC_FILE = Path.home() / ".config" / "elm327obd" / "dtc.csv"
+USER_GUIDE_FILE = Path.home() / ".config" / "elm327obd" / "dtc_guide.toml"
+
+# ---- names -------------------------------------------------------------------
+# Lookup order: your dtc.csv → built-in GENERIC (curated) → python-OBD's table
+# (2,000+ generic P0/P2/P3/U0 names, GPL-2.0, data/python_obd_dtc.tsv) → a
+# description derived from the code's structure.
+
+_user_codes: dict[str, str] | None = None
+_pyobd_codes: dict[str, str] | None = None
 
 
 def _load_user_codes() -> dict[str, str]:
@@ -244,23 +259,229 @@ def _load_user_codes() -> dict[str, str]:
     if _user_codes is None:
         _user_codes = {}
         if USER_DTC_FILE.exists():
-            with USER_DTC_FILE.open(newline="") as fh:
+            with USER_DTC_FILE.open(newline="", encoding="utf-8") as fh:
                 for row in csv.reader(fh):
                     if len(row) >= 2 and row[0].strip():
                         _user_codes[row[0].strip().upper()] = row[1].strip()
     return _user_codes
 
 
+def _load_pyobd_codes() -> dict[str, str]:
+    global _pyobd_codes
+    if _pyobd_codes is None:
+        _pyobd_codes = {}
+        path = resources.files("elm327obd") / "data" / "python_obd_dtc.tsv"
+        try:
+            text = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return _pyobd_codes  # optional GPL data removed: fall back to built-in names
+        for line in text.splitlines():
+            if line and not line.startswith("#"):
+                code, _, text = line.partition("\t")
+                _pyobd_codes[code] = text
+    return _pyobd_codes
+
+
+def is_manufacturer_specific(code: str) -> bool:
+    """SAE J2012: P1xxx, P30xx–P33xx, and B/C/U with 1/2 (3 = reserved) are OEM-defined."""
+    code = code.upper()
+    if code[0] == "P":
+        return code[1] == "1" or (code[1] == "3" and code[2] in "0123")
+    return code[1] in "123"
+
+
+def name_source(code: str) -> str:
+    code = code.upper()
+    if code in _load_user_codes():
+        return "custom"
+    if code in GENERIC:
+        return "built-in"
+    if code in _load_pyobd_codes():
+        return "python-OBD"
+    return "category"
+
+
 def describe(code: str) -> str:
     code = code.upper()
-    user = _load_user_codes()
-    if code in user:
-        return user[code]
-    if code in GENERIC:
-        return GENERIC[code]
+    for table in (_load_user_codes(), GENERIC, _load_pyobd_codes()):
+        if code in table:
+            return table[code]
     system = SYSTEM.get(code[0], "Unknown")
-    if code[1] in "13":
+    if is_manufacturer_specific(code):
         return f"Manufacturer-specific {system.lower()} code – look up for your make"
+    if code[0] == "P" and code[1] == "3":
+        return "Generic powertrain: cylinder deactivation"
     if code[0] == "P":
         return f"Generic powertrain: {P0_SUBSYSTEM.get(code[2], 'unspecified subsystem')}"
     return f"Generic {system.lower()} code"
+
+
+# ---- guidance ----------------------------------------------------------------
+
+SEVERITIES = ("stop", "soon", "monitor", "low")
+SEVERITY_TEXT = {
+    "stop": "Stop driving as soon as it's safe – risk of engine damage or unsafe operation.",
+    "soon": "Get it fixed soon – affects how the car runs, or can cause damage if ignored.",
+    "monitor": "Fix when convenient – keep an eye on it; usually not urgent.",
+    "low": "Low urgency – mainly emissions/inspection; the car normally drives fine.",
+}
+
+
+@dataclass(frozen=True)
+class Guide:
+    code: str
+    name: str
+    severity: str
+    summary: str
+    causes: tuple[str, ...] = ()
+    checks: tuple[str, ...] = ()
+    watch: tuple[int, ...] = ()  # Mode 01 PIDs worth reading live
+    source: str = "guide"  # "guide", "custom" or "estimated"
+
+    @property
+    def rank(self) -> int:
+        return SEVERITIES.index(self.severity)
+
+
+_guide: dict[str, dict] | None = None
+GUIDE_ERRORS: list[str] = []
+
+
+def expand_codes(spec: str) -> list[str]:
+    """"P0301-P0308" → P0301…P0308 (last three characters counted in hex)."""
+    spec = spec.strip().upper()
+    if "-" not in spec:
+        return [spec]
+    first, last = (part.strip() for part in spec.split("-", 1))
+    if first[:2] != last[:2]:
+        raise ValueError(f"range {spec!r} must keep the same first two characters")
+    lo, hi = int(first[2:], 16), int(last[2:], 16)
+    if hi < lo or hi - lo > 0x100:
+        raise ValueError(f"bad range {spec!r}")
+    return [f"{first[:2]}{n:03X}" for n in range(lo, hi + 1)]
+
+
+def _parse_guide(text: str, source: str, into: dict[str, dict]) -> None:
+    from elm327obd.pids import PIDS  # local import: pids doesn't depend on dtc
+
+    for i, entry in enumerate(tomllib.loads(text).get("entry", [])):
+        where = f"{source} entry {i + 1}"
+        severity = entry.get("severity")
+        if severity not in SEVERITIES:
+            raise ValueError(f"{where}: severity must be one of {', '.join(SEVERITIES)}")
+        watch = []
+        for pid in entry.get("watch", []):
+            num = int(str(pid)[-2:], 16)
+            if num not in PIDS:
+                raise ValueError(f"{where}: unknown watch PID {pid!r}")
+            watch.append(num)
+        data = {
+            "severity": severity,
+            "summary": str(entry.get("summary", "")).strip(),
+            "causes": tuple(entry.get("causes", [])),
+            "checks": tuple(entry.get("checks", [])),
+            "watch": tuple(watch),
+            "source": "custom" if source != "built-in" else "guide",
+        }
+        for spec in entry.get("codes", []):
+            for code in expand_codes(spec):
+                into[code] = data
+
+
+def _load_guide() -> dict[str, dict]:
+    global _guide
+    if _guide is None:
+        table: dict[str, dict] = {}
+        builtin = resources.files("elm327obd") / "dtc_guide.toml"
+        _parse_guide(builtin.read_text(encoding="utf-8"), "built-in", table)
+        if USER_GUIDE_FILE.exists():
+            try:
+                _parse_guide(USER_GUIDE_FILE.read_text(encoding="utf-8"), USER_GUIDE_FILE.name, table)
+            except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, ValueError, TypeError) as exc:
+                GUIDE_ERRORS.append(f"{USER_GUIDE_FILE}: {exc}")
+        _guide = table
+    return _guide
+
+
+# Keyword rules for codes without a hand-written entry, checked in order
+# against the code's name. They give a sensible first estimate, not a diagnosis.
+_RULES: list[tuple[str, str, str]] = [
+    (r"over ?temperature|overheat", "stop",
+     "Something (coolant, oil or transmission fluid) is too hot – pull over and let it cool."),
+    (r"oil pressure too low|low oil pressure", "stop", "Engine oil pressure may be too low."),
+    (r"oil pressure", "soon", "Oil pressure sensing fault – check the oil level now and watch the oil light."),
+    (r"misfire", "soon", "A misfire was detected. If the check-engine light is flashing, stop driving."),
+    # Network codes name the module they lost; check these before the per-system rules below.
+    (r"(lost communication|invalid data).*(abs|anti-?lock|brake|restraint|airbag|occupant|steering)", "soon",
+     "Communication problem with a safety-related module – ABS, stability, airbag or steering functions "
+     "may be disabled."),
+    (r"lost communication|invalid data|communication bus|\bcan\b", "monitor",
+     "Module communication – often low battery voltage, connectors or a module offline."),
+    (r"(ho2s|o2 sensor|oxygen sensor|a/f sensor).*heater|heater.*(ho2s|o2 sensor)", "low",
+     "An oxygen sensor heater circuit fault – mainly affects emissions after cold starts."),
+    (r"(ho2s|o2 sensor|oxygen sensor|a/f sensor).*sensor [23]", "low",
+     "A downstream oxygen sensor issue – mainly emissions monitoring."),
+    (r"ho2s|o2 sensor|oxygen sensor|a/f sensor|air.?fuel ratio", "monitor",
+     "An oxygen/air-fuel sensor issue – can affect fuel control and economy."),
+    (r"catalyst", "low", "Catalytic converter system – mainly emissions."),
+    (r"evap|evaporative|purge|fuel tank pressure|fuel cap|canister", "low",
+     "Evaporative emissions (fuel vapour) system – no effect on driving."),
+    (r"\begr\b|exhaust gas recirculation", "low", "Exhaust gas recirculation system – mainly emissions."),
+    (r"secondary air", "low", "Secondary air injection – mainly emissions on cold starts."),
+    (r"particulate|\bdpf\b|\bscr\b|\bdef\b|reductant|nox", "monitor",
+     "Diesel/advanced emissions after-treatment – may lead to reduced power if ignored."),
+    (r"knock", "monitor", "Knock sensing – the engine may reduce timing, lowering power."),
+    (r"injector|fuel pump|fuel rail|fuel pressure|fuel volume|fuel shutoff", "soon",
+     "Fuel delivery – can cause hesitation, stalling or no-start."),
+    (r"ignition coil|spark", "soon", "Ignition – likely to cause misfires."),
+    (r"crankshaft|camshaft|timing", "soon", "Engine timing/position sensing – can cause stalling or no-start."),
+    (r"throttle|pedal", "soon", "Throttle/pedal control – may cause reduced-power (limp) mode."),
+    (r"turbo|supercharger|boost|wastegate", "soon", "Boost control – expect reduced power."),
+    (r"transmission|gear|shift|torque converter|clutch|range sensor", "soon",
+     "Transmission – may cause harsh shifts, slipping or limp mode."),
+    (r"brake", "soon", "Brake-related – brake lights, ABS or cruise functions may be affected."),
+    (r"airbag|restraint|occupant|seat ?belt|pretension", "soon", "Safety restraint system – airbags may not deploy."),
+    (r"\babs\b|anti-?lock|stability|traction|yaw|wheel speed", "soon",
+     "Braking/stability systems – ABS or traction control may be disabled."),
+    (r"steering", "soon", "Steering system – assist or related features may be affected."),
+    (r"coolant|cooling fan|thermostat|radiator", "soon", "Cooling system – watch engine temperature."),
+    (r"battery|charging|generator|alternator|system voltage", "soon",
+     "Charging/electrical supply – can leave you stranded."),
+    (r"hybrid|high voltage|drive motor|inverter", "soon", "Hybrid/electric drive system – have it checked promptly."),
+    (r"a/c|air condition|hvac|climate|blower|refrigerant", "low", "Climate control – comfort only."),
+    (r"lamp|light|indicator|mirror|radio|window|door|wiper|horn|seat", "low", "Body/convenience feature."),
+]
+
+_P_SUBSYSTEM_SEVERITY = {"0": "monitor", "1": "monitor", "2": "monitor", "3": "soon", "4": "low",
+                         "5": "monitor", "6": "monitor", "7": "soon", "8": "soon", "9": "soon",
+                         "A": "soon", "B": "soon", "C": "soon"}
+
+
+def _estimate(code: str, name: str) -> tuple[str, str]:
+    lower = name.lower()
+    for pattern, severity, summary in _RULES:
+        if re.search(pattern, lower):
+            return severity, summary
+    if is_manufacturer_specific(code):
+        return "monitor", "Manufacturer-specific code: look up its exact meaning for your make before deciding."
+    if code[0] == "P" and code[1] == "3":
+        return "monitor", "Cylinder deactivation system – may cause rough running or reduced economy."
+    if code[0] == "P":
+        return _P_SUBSYSTEM_SEVERITY.get(code[2], "monitor"), (
+            f"Generic powertrain code ({P0_SUBSYSTEM.get(code[2], 'unspecified subsystem').lower()}).")
+    if code[0] == "C":
+        return "soon", "Chassis code – brakes, steering or suspension may be affected."
+    if code[0] == "U":
+        return "monitor", "Network code – often low battery voltage, connectors or a module offline."
+    return "monitor", "Body code – usually a convenience or comfort feature."
+
+
+def guide(code: str) -> Guide:
+    code = code.upper()
+    name = describe(code)
+    entry = _load_guide().get(code)
+    if entry:
+        return Guide(code, name, entry["severity"], entry["summary"], entry["causes"], entry["checks"],
+                     entry["watch"], entry["source"])
+    severity, summary = _estimate(code, name)
+    return Guide(code, name, severity, summary, source="estimated")

@@ -41,7 +41,7 @@ def test_dtc_decode():
 def test_describe_fallbacks():
     assert "misfire" in describe("P0301").lower()
     assert "Manufacturer-specific" in describe("P1234")
-    assert "Transmission" in describe("P0799")
+    assert "Transmission" in describe("P070A")  # not in any name list → category fallback
 
 
 @pytest.mark.parametrize("formula,payload,expected", [

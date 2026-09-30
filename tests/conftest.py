@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from elm327obd import config, profiles
+from elm327obd import config, dtc, profiles
 from elm327obd.elm import ELM327
 from elm327obd.emulator import Vehicle, serve
 from elm327obd.transport import ElmTransport
@@ -14,6 +14,11 @@ def isolated_config(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "CONFIG_DIR", tmp_path / "cfg")
     monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "cfg" / "config.json")
     monkeypatch.setattr(profiles, "USER_PROFILE_DIR", tmp_path / "profiles")
+    monkeypatch.setattr(dtc, "USER_DTC_FILE", tmp_path / "cfg" / "dtc.csv")
+    monkeypatch.setattr(dtc, "USER_GUIDE_FILE", tmp_path / "cfg" / "dtc_guide.toml")
+    monkeypatch.setattr(dtc, "_user_codes", None)  # force reload from the patched paths
+    monkeypatch.setattr(dtc, "_guide", None)
+    monkeypatch.setattr(dtc, "GUIDE_ERRORS", [])
     return tmp_path
 
 

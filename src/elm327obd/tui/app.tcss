@@ -107,7 +107,7 @@ DataTable > .datatable--header {
 /* ---------- codes ---------- */
 
 #mil-banner {
-    height: 3;
+    height: 4;
     content-align: left middle;
     padding: 0 2;
     margin: 1 0;
@@ -123,11 +123,20 @@ DataTable > .datatable--header {
     width: 2fr;
 }
 
-#freeze-panel {
+#codes-side {
     width: 1fr;
-    min-width: 34;
-    padding: 0 2;
+    min-width: 44;
     border-left: vkey #3a3a3a;
+    padding: 0 1 0 2;
+}
+
+#dtc-detail {
+    height: auto;
+}
+
+#freeze-panel {
+    height: auto;
+    margin-top: 1;
 }
 
 .actions {

@@ -29,13 +29,21 @@ class Found:
 
 
 def default_gateway() -> str | None:
-    try:
-        out = subprocess.run(
-            ["route", "-n", "get", "default"], capture_output=True, text=True, timeout=2
-        ).stdout
-    except (OSError, subprocess.SubprocessError):
-        return None
-    m = re.search(r"gateway:\s*([\d.]+)", out)
+    """Router address of the current network (often the adapter itself)."""
+    for cmd in (["route", "-n", "get", "default"], ["ip", "-4", "route", "show", "default"]):
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout
+        except (OSError, subprocess.SubprocessError):
+            continue  # macOS has `route -n get`, Linux has `ip route`
+        gw = parse_gateway(out)
+        if gw:
+            return gw
+    return None
+
+
+def parse_gateway(output: str) -> str | None:
+    # macOS: "gateway: 192.168.0.10"   Linux: "default via 192.168.0.10 dev wlan0 ..."
+    m = re.search(r"gateway:\s*([\d.]+)", output) or re.search(r"default via ([\d.]+)", output)
     return m.group(1) if m else None
 
 

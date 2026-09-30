@@ -63,16 +63,50 @@ async def _cmd_codes(args) -> None:
     try:
         if not elm.vehicle_ok:
             sys.exit("Vehicle not responding (ignition ON?)")
-        codes = await elm.read_dtcs()
+        codes = sorted(await elm.read_dtcs(), key=lambda d: (d.guide.rank, d.code))
         if not codes:
             print("No trouble codes.")
         for c in codes:
-            print(f"{c.code}  {c.kind:<9}  {c.ecu:<4}  {c.description}")
+            print(f"{c.guide.severity.upper():<8} {c.code}  {c.kind:<9}  {c.ecu:<4}  {c.description}")
+        if codes:
+            print("\nRun `obd explain CODE` for likely causes and what to check.")
         if args.clear:
             if input("Clear all codes, freeze frame and readiness monitors? [y/N] ").lower() == "y":
                 print("Cleared by:", ", ".join(await elm.clear_dtcs()) or "no modules")
     finally:
         await elm.close()
+
+
+def _cmd_explain(args) -> None:
+    import re
+    import textwrap
+
+    from elm327obd.dtc import SEVERITY_TEXT, guide, name_source
+
+    def item(prefix: str, text: str) -> str:
+        return textwrap.fill(text, width=88, initial_indent=prefix, subsequent_indent=" " * len(prefix))
+
+    for raw in args.codes:
+        code = raw.strip().upper()
+        if not re.fullmatch(r"[PCBU][0-3][0-9A-F]{3}", code):
+            print(f"{raw}: not a trouble code (expected e.g. P0420, U0100)\n")
+            continue
+        g = guide(code)
+        estimated = g.source == "estimated"
+        print(f"{code}  [{g.severity.upper()}{' – estimated' if estimated else ''}]  {g.name}")
+        if g.summary:
+            print(item("     ", g.summary))
+        print(item("     ", SEVERITY_TEXT[g.severity]))
+        if g.causes:
+            print("   Likely causes:")
+            for i, cause in enumerate(g.causes, 1):
+                print(item(f"     {i}. ", cause))
+        if g.checks:
+            print("   What to check:")
+            for check in g.checks:
+                print(item("     - ", check))
+        note = "estimated from the code's name/category" if estimated else "hand-written guide"
+        print(f"   (name: {name_source(code)}; guidance: {note})\n")
 
 
 async def _cmd_info(args) -> None:
@@ -116,6 +150,8 @@ def main(argv: list[str] | None = None) -> None:
     p_codes = sub.add_parser("codes", parents=[common], help="print trouble codes (headless)")
     p_codes.add_argument("--clear", action="store_true", help="clear codes after printing (asks first)")
     sub.add_parser("info", parents=[common], help="print vehicle info and readiness (headless)")
+    p_explain = sub.add_parser("explain", help="explain trouble codes offline (no car needed)")
+    p_explain.add_argument("codes", nargs="+", metavar="CODE", help="e.g. P0420 P0171")
     p_emu = sub.add_parser("emulator", help="run a fake ELM327 + vehicle for testing")
     p_emu.add_argument("--host", default="127.0.0.1")
     p_emu.add_argument("--port", type=int, default=35000)
@@ -130,6 +166,8 @@ def main(argv: list[str] | None = None) -> None:
                 asyncio.run(_cmd_codes(args))
             case "info":
                 asyncio.run(_cmd_info(args))
+            case "explain":
+                _cmd_explain(args)
             case "emulator":
                 from elm327obd.emulator import run_forever
 

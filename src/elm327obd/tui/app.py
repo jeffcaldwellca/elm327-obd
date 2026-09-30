@@ -48,7 +48,16 @@ from elm327obd.protocol import (
 )
 from elm327obd.transport import TransportError
 from elm327obd.tui.screens import ConfirmScreen, ConnectScreen, PidPickerScreen
-from elm327obd.tui.widgets import Gauge, HistoryInput, LiveStore, StatusBar, trend
+from elm327obd.tui.widgets import (
+    Gauge,
+    HistoryInput,
+    LiveStore,
+    StatusBar,
+    SteadyTabbedContent,
+    render_guide,
+    severity_label,
+    trend,
+)
 
 DANGEROUS_SERVICES = {
     0x04: "Clear DTCs / freeze frame / readiness (Mode 04)",
@@ -162,6 +171,7 @@ class ObdApp(App):
         self._console_busy = False
         self._loaded: set[str] = set()
         self._console_pending: deque[Text] = deque(maxlen=2000)
+        self._codes: list[Dtc] = []  # rows of the trouble-code table, most severe first
 
     def notify(self, message: str, **kwargs) -> None:  # type: ignore[override]
         # Messages often carry adapter/ECU text or exception strings; never
@@ -174,7 +184,7 @@ class ObdApp(App):
 
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status")
-        with TabbedContent(id="tabs", initial="dash"):
+        with SteadyTabbedContent(id="tabs", initial="dash"):
             with TabPane("① Dashboard", id="dash"):
                 yield Grid(id="dash-grid")
             with TabPane("② Live data", id="live"):
@@ -183,7 +193,9 @@ class ObdApp(App):
                 yield Static("", id="mil-banner")
                 with Horizontal(id="codes-body"):
                     yield DataTable(id="dtc-table", zebra_stripes=True, cursor_type="row")
-                    yield Static("", id="freeze-panel")
+                    with VerticalScroll(id="codes-side"):
+                        yield Static("[#8a8a8a]Select a code to see what it means.[/]", id="dtc-detail")
+                        yield Static("", id="freeze-panel")
                 with Horizontal(classes="actions"):
                     yield Button("Read codes  r", id="btn-read", variant="primary")
                     yield Button("Freeze frame  f", id="btn-ff")
@@ -231,8 +243,8 @@ class ObdApp(App):
         live.add_column("Trend", key="trend", width=26)
 
         dtc = self.query_one("#dtc-table", DataTable)
-        for label, key, width in (("Code", "code", 7), ("Status", "kind", 10), ("Module", "ecu", 20),
-                                  ("Description", "desc", None)):
+        for label, key, width in (("Severity", "sev", 10), ("Code", "code", 7), ("Status", "kind", 10),
+                                  ("Module", "ecu", 20), ("Description", "desc", None)):
             dtc.add_column(label, key=key, width=width)
 
         ext = self.query_one("#ext-table", DataTable)
@@ -518,6 +530,11 @@ class ObdApp(App):
 
     @on(TabbedContent.TabActivated)
     def _tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        # With fast key presses the event for a tab the user already left can
+        # arrive late; acting on it would focus a widget in that hidden pane,
+        # which re-activates it and bounces the user back.
+        if event.pane.id != self.active_tab:
+            return
         self.on_tab_shown(event.pane.id or "")
 
     def on_tab_shown(self, tab: str) -> None:
@@ -615,28 +632,69 @@ class ObdApp(App):
         self.mil = status.mil_on if status else None
         self.show_codes(codes)
         stored = sum(1 for c in codes if c.kind == "Stored")
+        text = Text()
         if status and status.mil_on:
-            banner.update(Text.from_markup(
-                f"[bold #ff5f5f]⚠ CHECK ENGINE LIGHT ON[/]   {status.dtc_count} emission code(s) reported · "
-                f"{len(codes)} total across {len({c.ecu for c in codes})} module(s)"))
+            text.append("⚠ CHECK ENGINE LIGHT ON", style="bold #ff5f5f")
+            text.append(f"   {status.dtc_count} emission code(s) reported · {len(codes)} total across "
+                        f"{len({c.ecu for c in codes})} module(s)")
         elif codes:
-            banner.update(Text.from_markup(
-                f"[bold #ffaf00]● MIL off[/]   {stored} stored · {len(codes) - stored} pending/permanent"))
+            text.append("● MIL off", style="bold #ffaf00")
+            text.append(f"   {stored} stored · {len(codes) - stored} pending/permanent")
         else:
-            banner.update(Text.from_markup("[bold #5fd7af]✔ No trouble codes[/]   MIL off"))
+            text.append("✔ No trouble codes", style="bold #5fd7af")
+            text.append("   MIL off")
+        if self._codes:
+            worst = self._codes[0]
+            text.append("\nMost urgent: ")
+            text.append_text(severity_label(worst.guide.severity))
+            text.append(f"  {worst.code} – {worst.description}")
+        banner.update(text)
 
     def show_codes(self, codes: list[Dtc]) -> None:
         table = self.query_one("#dtc-table", DataTable)
         table.clear()
+        order = {"Stored": 0, "Pending": 1, "Permanent": 2}
+        self._codes = sorted(codes, key=lambda d: (d.guide.rank, order.get(d.kind, 3), d.code))
         colors = {"Stored": "#ff8787", "Pending": "#ffaf00", "Permanent": "#d787ff"}
-        for i, dtc in enumerate(codes):
+        for i, dtc in enumerate(self._codes):
             table.add_row(
+                severity_label(dtc.guide.severity),
                 Text(dtc.code, style="bold"),
                 Text(dtc.kind, style=colors.get(dtc.kind, "")),
                 f"{dtc.ecu} {ecu_name(dtc.ecu)}",
                 dtc.description,
                 key=f"{i}",
             )
+        detail = self.query_one("#dtc-detail", Static)
+        if self._codes:
+            self.show_dtc_detail(0)
+        else:
+            detail.update(Text("No codes stored in any module.", style="#8a8a8a"))
+
+    @on(DataTable.RowHighlighted, "#dtc-table")
+    def _dtc_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        if event.row_key.value is not None:
+            self.show_dtc_detail(int(event.row_key.value))
+
+    @work(exclusive=True, group="dtc-detail")
+    async def show_dtc_detail(self, index: int) -> None:
+        if not 0 <= index < len(self._codes):
+            return
+        dtc = self._codes[index]
+        panel = self.query_one("#dtc-detail", Static)
+        imperial = self.config.imperial
+        watch = [p for p in dtc.guide.watch if not self.elm or p in self.elm.supported]
+        online = bool(self.elm and self.elm.vehicle_ok)
+        if not watch or not online:
+            panel.update(render_guide(dtc, None if not online else {}, imperial))
+            return
+        panel.update(render_guide(dtc, None, imperial, reading=True))
+        await asyncio.sleep(0.15)  # debounce while the cursor is moving through the list
+        try:
+            live = await self.elm.read_decoded(watch)
+        except (TransportError, ElmError):
+            live = {}
+        panel.update(render_guide(dtc, live, imperial))
 
     @on(Button.Pressed, "#btn-ff")
     def action_freeze_frame(self) -> None:
@@ -964,10 +1022,11 @@ class ObdApp(App):
                         got = P.decode_support_bitmap(pid, data)
                         notes.append(f"{m.ecu} supports PIDs {', '.join(f'{p:02X}' for p in sorted(got))}")
             elif m.service in (0x43, 0x47, 0x4A):
-                from elm327obd.dtc import describe, parse_dtc_payload
+                from elm327obd.dtc import describe, guide, parse_dtc_payload
 
                 codes = parse_dtc_payload(m.data[1:], has_count=is_can(self.elm.protocol))
-                notes += [f"{m.ecu} {c}: {describe(c)}" for c in codes] or [f"{m.ecu}: no codes"]
+                notes += [f"{m.ecu} {c} [{guide(c).severity.upper()}]: {describe(c)}" for c in codes] \
+                    or [f"{m.ecu}: no codes"]
             elif m.service in (0x49, 0x62):
                 text = "".join(chr(c) for c in m.data[3:] if 32 <= c < 127)
                 if len(text) >= 4:

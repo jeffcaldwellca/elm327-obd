@@ -9,7 +9,7 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Digits, Input, Sparkline, Static
+from textual.widgets import Digits, Input, Sparkline, Static, TabbedContent, TabPane
 
 from elm327obd import pids as P
 
@@ -200,3 +200,117 @@ class HistoryInput(Input):
         self._pos = max(0, min(len(self.history), self._pos + step))
         self.value = self.history[self._pos] if self._pos < len(self.history) else ""
         self.cursor_position = len(self.value)
+
+
+class SteadyTabbedContent(TabbedContent):
+    """TabbedContent that only changes tab when the user asks.
+
+    Stock TabbedContent also activates whichever pane contains a newly focused
+    widget. Widget.focus() is deferred, so a focus call queued for the previous
+    tab can land after the user has already switched and flip them back. Tabs
+    here only change via keys/clicks, and Tab-key focus cycling skips hidden
+    panes, so focus-driven activation is disabled.
+    """
+
+    def _on_tab_pane_focused(self, event: TabPane.Focused) -> None:
+        # Textual runs this handler for every class in the MRO; prevent_default
+        # stops the base TabbedContent handler from switching the tab anyway.
+        event.prevent_default()
+        event.stop()
+
+
+# ---- trouble-code guidance rendering ------------------------------------------
+
+SEVERITY_STYLE = {
+    "stop": ("■ STOP", "bold #ff5f5f"),
+    "soon": ("▲ SOON", "bold #ffaf00"),
+    "monitor": ("● MONITOR", "#d7d75f"),
+    "low": ("○ LOW", "#5fd7af"),
+}
+
+KIND_NOTE = {
+    "Stored": "Stored – a confirmed fault. Emission-related stored codes turn on the check-engine light.",
+    "Pending": "Pending – seen on the last drive cycle but not confirmed yet. If the fault doesn't recur, "
+               "it clears itself; if it does, it becomes stored.",
+    "Permanent": "Permanent – can't be cleared with a scan tool. It clears itself after the repair, once the car "
+                 "re-runs the test and passes (can take a few drive cycles).",
+}
+
+NAME_SOURCE = {
+    "custom": "your dtc.csv",
+    "built-in": "built-in list",
+    "python-OBD": "python-OBD code list (GPL-2.0)",
+    "category": "derived from the code's structure",
+}
+
+
+def _hanging(items: list[tuple[str, str]]):
+    """Marker + text rows where wrapped lines stay aligned under the text."""
+    from rich.table import Table
+
+    grid = Table.grid(padding=(0, 1))
+    grid.add_column(justify="right", no_wrap=True, style="#8a8a8a")
+    grid.add_column(ratio=1)
+    for marker, text in items:
+        grid.add_row(f" {marker}", text)
+    return grid
+
+
+def severity_label(severity: str) -> Text:
+    label, style = SEVERITY_STYLE[severity]
+    return Text(label, style=style)
+
+
+def render_guide(dtc, live: dict[int, P.Value] | None, imperial: bool, reading: bool = False):
+    """Rich renderable describing one DTC with guidance and live readings."""
+    from rich.console import Group
+
+    from elm327obd.dtc import SEVERITY_TEXT, name_source
+    from elm327obd.protocol import ecu_name
+
+    g = dtc.guide
+    parts: list = []
+    head = Text()
+    head.append(f"{g.code}  ", style="bold")
+    head.append_text(severity_label(g.severity))
+    if g.source == "estimated":
+        head.append("  (estimated)", style="#8a8a8a")
+    parts.append(head)
+    parts.append(Text(g.name, style="bold #d0d0d0"))
+    parts.append(Text(f"{dtc.kind} · {dtc.ecu} {ecu_name(dtc.ecu)}", style="#8a8a8a"))
+    parts.append(Text(""))
+    if g.summary:
+        parts.append(Text(g.summary))
+    parts.append(Text(SEVERITY_TEXT[g.severity], style=SEVERITY_STYLE[g.severity][1].replace("bold ", "")))
+
+    if g.causes:
+        parts.append(Text("\nLikely causes (most likely first)", style="bold #87afff"))
+        parts.append(_hanging([(f"{i}.", cause) for i, cause in enumerate(g.causes, 1)]))
+    if g.checks:
+        parts.append(Text("\nWhat to check", style="bold #87afff"))
+        parts.append(_hanging([("•", check) for check in g.checks]))
+    if g.watch:
+        parts.append(Text("\nLive readings", style="bold #87afff"))
+        if reading:
+            parts.append(Text(" ◌ reading…", style="#8a8a8a"))
+        elif live is None:
+            parts.append(Text(" (connect to the vehicle to see these)", style="#8a8a8a"))
+        for pid in g.watch:
+            if live is None or reading:
+                break
+            spec = P.PIDS[pid]
+            value, unit = P.convert(live.get(pid), spec.unit, imperial)
+            text = Text(f" {spec.name:<30}", style="#8a8a8a")
+            if pid in live:
+                text.append(f"{P.format_value(value, unit)} {unit}".rstrip(), style="bold")
+            else:
+                text.append("not supported", style="#5f5f5f")
+            parts.append(text)
+
+    parts.append(Text(f"\n{KIND_NOTE.get(dtc.kind, '')}", style="#8a8a8a"))
+    source = "hand-written guide" if g.source == "guide" else (
+        "your dtc_guide.toml" if g.source == "custom" else
+        "estimated from the code's name/category – look up specifics for your vehicle")
+    parts.append(Text(f"Name: {NAME_SOURCE[name_source(g.code)]} · Guidance: {source}", style="#5f5f5f"))
+    parts.append(Text("General guidance, not a diagnosis for your specific vehicle.", style="italic #5f5f5f"))
+    return Group(*parts)

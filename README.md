@@ -20,10 +20,24 @@ info, manufacturer (Mode 22) PIDs, CSV logging and a raw command console.
 
 ```bash
 cd ~/Development/elm327-obd
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+./setup.sh            # virtualenv + dependencies, links ~/.local/bin/obd
+./setup.sh --test     # same, and runs the test suite
+./setup.sh --no-link  # don't create the ~/.local/bin/obd symlink
 ```
 
-Then run `.venv/bin/obd` (or `source .venv/bin/activate` and just `obd`).
+Needs Python 3.11+ and internet access for the first install (it downloads Textual).
+It's safe to re-run; it reuses `.venv`.
+
+| Platform | Status |
+|---|---|
+| macOS | Tested (Python 3.14). `brew install python` if needed. |
+| Linux | Tested in Debian 12 / Python 3.11 containers. Stock Debian/Ubuntu Python needs `sudo apt install python3-venv`; Ubuntu 22.04 ships 3.10, so install 3.11+ first (deadsnakes PPA or `uv`). The script tells you which case applies. |
+| Windows | Not supported by `setup.sh`. WSL may work but is untested. |
+
+Linux notes: the Wi-Fi name isn't shown on the connect screen (macOS-only lookup), and
+adapter scanning uses `ip route` to find the router.
+Manual equivalent: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`,
+then run `.venv/bin/obd`.
 
 ## Connect to the adapter
 
@@ -53,7 +67,8 @@ Wi-Fi: *System Settings → Privacy & Security → Local Network* → enable Ter
 | `obd --imperial` | Start in °F / mph / psi (toggle anytime with `u`) |
 | `obd scan` | List adapters found on the current network |
 | `obd info [-a HOST:PORT]` | Print VIN, modules, calibration IDs, readiness (no TUI) |
-| `obd codes [--clear]` | Print trouble codes; optionally clear (asks first) |
+| `obd codes [--clear]` | Print trouble codes with severity; optionally clear (asks first) |
+| `obd explain P0171 P0420` | Explain codes offline: severity, likely causes, what to check |
 | `obd emulator [--port 35000] [--ignition-off]` | Run a fake ELM327 for other tools / testing |
 
 ## Keys
@@ -76,8 +91,10 @@ Wi-Fi: *System Settings → Privacy & Security → Local Network* → enable Ter
   The grid reflows to the terminal width. Gauges dim when their data goes stale.
 - **Live data**: every supported Mode 01 PID with value, min/max and an inline trend.
   Requests are batched (up to 6 PIDs per CAN request), which usually gives 10+ Hz over Wi-Fi.
-- **Trouble codes**: stored, pending and permanent codes from **every** module, with the
-  check-engine light (MIL) status, descriptions and a freeze-frame snapshot.
+- **Trouble codes**: stored, pending and permanent codes from **every** module, sorted most
+  urgent first, with the check-engine light (MIL) status and a freeze-frame snapshot. Selecting
+  a code shows its severity, plain-English meaning, likely causes (most likely first), what to
+  check, and live readings of the relevant sensors (e.g. fuel trims for a lean code).
 - **Vehicle**: VIN, protocol, modules found, calibration IDs/CVNs, odometer (where supported)
   and the readiness monitors — useful before an emissions inspection.
 - **Extended (Mode 22)**: per-make profiles (Ford, GM, Hyundai/Kia) plus a read-only
@@ -115,6 +132,43 @@ modules that support service 22.
 
 Custom DTC descriptions (e.g. manufacturer P1xxx codes) go in `~/.config/elm327obd/dtc.csv`
 (`code,description` per line).
+
+## Trouble-code guidance
+
+Every code gets a **severity**:
+
+| Severity | Meaning |
+|---|---|
+| ■ STOP | Stop driving as soon as it's safe: risk of engine damage or unsafe operation (e.g. overheating, low oil pressure) |
+| ▲ SOON | Get it fixed soon: affects how the car runs or can cause damage (e.g. misfires, lean/rich, transmission slipping) |
+| ● MONITOR | Fix when convenient; keep an eye on it |
+| ○ LOW | Mainly emissions/inspection; the car drives fine (e.g. catalyst efficiency, EVAP leaks, O2 heaters) |
+
+Where the information comes from:
+
+1. **Hand-written guidance** (`src/elm327obd/dtc_guide.toml`) for the ~200 codes people
+   actually see: summary, likely causes, checks and which live PIDs to watch.
+2. **Estimated** severity for every other code, from keywords in its name and its category,
+   labelled "estimated" in the UI. Manufacturer-specific codes (P1xxx, B1xxx, U1xxx…) have
+   no public definition, so look those up for your make.
+3. **Names**: your `~/.config/elm327obd/dtc.csv` first, then the built-in list, then the
+   python-OBD list (2,066 generic P0/P2/P3/U0 codes), then a description derived from the
+   code's structure.
+
+You can override or add guidance in `~/.config/elm327obd/dtc_guide.toml` (same format as the
+built-in file, e.g. for a manufacturer code your mechanic has explained). This is general
+guidance, **not a diagnosis** for your specific vehicle. A flashing check-engine light always
+means stop.
+
+### Third-party data and licensing
+
+`src/elm327obd/data/python_obd_dtc.tsv` is derived from
+[python-OBD](https://github.com/brendan-w/python-OBD) (GPL-2.0; license in
+`data/LICENSE.python-OBD`). It was converted to TSV and 48 OCR typos ("lntake") were fixed;
+regenerate it with `tools/import_python_obd.py`. For personal use this changes nothing. **If you
+distribute this app** with that file included, the combined work has to go out under
+GPL-compatible terms (GPL-2.0-or-later). To avoid that, delete the file: names then fall back
+to the built-in list and code categories.
 
 ## What an ELM327 can't do: tuning
 

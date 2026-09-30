@@ -1,0 +1,821 @@
+# Plain-English guidance for common OBD-II trouble codes.
+#
+# This is general automotive guidance, not a diagnosis for a specific vehicle.
+# Override or extend any entry in ~/.config/elm327obd/dtc_guide.toml (same format;
+# later entries win).
+#
+# severity:
+#   stop     Stop driving as soon as it's safe: risk of engine damage or unsafe operation.
+#   soon     Get it fixed soon: affects how the car runs, or can cause damage if ignored.
+#   monitor  Fix when convenient: keep an eye on it; usually not urgent.
+#   low      Low urgency: mainly emissions/inspection; the car normally drives fine.
+#
+# codes:  list of codes; "P0301-P0308" expands to every code in the range.
+# causes: most likely first.   watch: Mode 01 PIDs that help confirm it.
+
+# ---------------------------------------------------------------- cam timing
+
+[[entry]]
+codes = ["P0010", "P0013", "P0020"]
+severity = "soon"
+summary = "The engine computer can't electrically control a variable cam timing (VVT) oil control solenoid."
+causes = [
+  "Failed VVT / oil control solenoid",
+  "Damaged wiring or corroded connector at the solenoid",
+  "Low or very dirty engine oil",
+]
+checks = [
+  "Inspect the solenoid connector and wiring for damage or oil in the connector",
+  "Measure solenoid resistance against the service spec",
+  "Check the oil level and condition",
+]
+
+[[entry]]
+codes = ["P0011", "P0012", "P0014", "P0021"]
+severity = "soon"
+summary = "Actual cam timing doesn't match what the computer commanded."
+causes = [
+  "Low oil level, wrong oil viscosity, or an overdue oil change",
+  "Sticking oil control solenoid or clogged solenoid screen",
+  "Stretched timing chain or worn cam phaser (higher mileage engines)",
+]
+checks = [
+  "Check oil level; change oil with the grade specified on the oil cap/manual",
+  "Clear the code and see whether it returns after the oil change",
+  "If it returns with a rattle at start-up, have the timing chain inspected",
+]
+
+[[entry]]
+codes = ["P0016", "P0017", "P0018"]
+severity = "soon"
+summary = "Crankshaft and camshaft positions don't line up the way they should."
+causes = [
+  "Stretched or jumped timing chain/belt",
+  "Faulty cam or crank position sensor",
+  "Stuck VVT solenoid or phaser",
+  "Damaged sensor reluctor/tone ring",
+]
+checks = [
+  "Note any other cam/crank/VVT codes stored with it",
+  "Listen for timing chain rattle on cold start",
+  "If the engine runs rough or rattles loudly, stop driving: a jumped chain can wreck the engine",
+]
+
+# ---------------------------------------------------------------- O2 sensor heaters
+
+[[entry]]
+codes = ["P0030", "P0036", "P0135", "P0141", "P0155", "P0161"]
+severity = "low"
+summary = "The heater inside an oxygen sensor isn't working, so the sensor is slow to start reading after a cold start."
+causes = [
+  "Failed O2 sensor heater element (replace the sensor)",
+  "Blown fuse for the O2 heater circuit",
+  "Damaged wiring near the exhaust",
+]
+checks = [
+  "Check the O2 heater fuse",
+  "Measure heater resistance at the sensor connector (typically a few ohms)",
+  "Inspect the harness for melted or chafed wires near the exhaust",
+]
+
+# ---------------------------------------------------------------- air / fuel metering
+
+[[entry]]
+codes = ["P0068"]
+severity = "soon"
+summary = "Airflow readings (MAF/MAP) don't agree with the throttle position."
+causes = [
+  "Vacuum or intake air leak after the throttle",
+  "Dirty or failing MAF sensor",
+  "Dirty throttle body",
+]
+checks = ["Inspect intake boots and vacuum hoses for cracks", "Clean the throttle body and MAF sensor"]
+watch = ["0110", "010B", "0111"]
+
+[[entry]]
+codes = ["P0087"]
+severity = "soon"
+summary = "Fuel pressure is lower than the computer wants. The engine may hesitate, run lean or stall."
+causes = [
+  "Weak fuel pump or clogged fuel filter",
+  "Failing high-pressure fuel pump (direct-injection engines)",
+  "Faulty fuel pressure sensor",
+  "Running very low on fuel",
+]
+checks = [
+  "Refuel and see if it recurs",
+  "Compare fuel rail pressure at idle and under load",
+  "Have fuel pressure checked with a mechanical gauge",
+]
+watch = ["0123", "010A", "0106", "0107"]
+
+[[entry]]
+codes = ["P0088"]
+severity = "soon"
+summary = "Fuel pressure is higher than the computer wants."
+causes = [
+  "Stuck fuel pressure regulator or pressure control valve",
+  "Faulty fuel pressure sensor",
+  "Restricted fuel return line",
+]
+checks = ["Compare fuel rail pressure to spec", "Check the pressure sensor wiring"]
+watch = ["0123", "010A"]
+
+[[entry]]
+codes = ["P0100", "P0101", "P0102", "P0103"]
+severity = "soon"
+summary = "The mass air flow (MAF) sensor reading is missing or doesn't make sense. The engine may hesitate, stall or run poorly."
+causes = [
+  "Dirty MAF sensor (oil from oiled air filters is a classic cause)",
+  "Air leak between the MAF and the throttle body (cracked intake boot)",
+  "Unplugged, corroded or damaged MAF connector",
+  "Failed MAF sensor",
+]
+checks = [
+  "Inspect the intake boot between the MAF and throttle for cracks or loose clamps",
+  "Clean the MAF with dedicated MAF cleaner (never touch the element)",
+  "Check that the air filter isn't clogged",
+  "At warm idle, MAF is roughly 2–7 g/s for most 4-cylinder engines and rises smoothly with RPM",
+]
+watch = ["0110", "0106", "0107", "010C"]
+
+[[entry]]
+codes = ["P0106", "P0107", "P0108"]
+severity = "soon"
+summary = "The manifold absolute pressure (MAP) sensor reading is out of range."
+causes = ["Cracked or disconnected MAP vacuum hose", "Failed MAP sensor", "Wiring or connector fault"]
+checks = [
+  "With the key on and engine off, MAP should read close to barometric pressure",
+  "At warm idle it should drop well below barometric (roughly 25–45 kPa)",
+]
+watch = ["010B", "0133"]
+
+[[entry]]
+codes = ["P0110", "P0112", "P0113"]
+severity = "monitor"
+summary = "The intake air temperature (IAT) sensor reading is missing or out of range."
+causes = [
+  "Unplugged or corroded connector (the IAT is often built into the MAF)",
+  "Failed sensor",
+  "Wiring fault (P0113 is usually an open circuit)",
+]
+checks = ["After the car has sat overnight, IAT should be close to the ambient temperature"]
+watch = ["010F", "0146"]
+
+[[entry]]
+codes = ["P0115", "P0116", "P0117", "P0118"]
+severity = "soon"
+summary = "The engine coolant temperature sensor reading is missing or implausible. The temperature gauge and cooling fans may not be reliable."
+causes = [
+  "Failed coolant temperature sensor",
+  "Corroded connector or damaged wiring",
+  "For P0116: thermostat stuck open, or low coolant",
+]
+checks = [
+  "Watch coolant temperature: it should climb steadily to about 85–105 °C",
+  "Check the coolant level with the engine cold",
+  "Keep an eye on the gauge; don't rely on the fans running automatically until it's fixed",
+]
+watch = ["0105"]
+
+[[entry]]
+codes = ["P0120", "P0121", "P0122", "P0123", "P0220", "P0221", "P0222", "P0223", "P2135"]
+severity = "soon"
+summary = "A throttle position sensor signal is faulty or the two throttle sensors disagree. The car often drops into reduced-power (limp) mode."
+causes = [
+  "Dirty or failing electronic throttle body",
+  "Worn throttle position sensor",
+  "Corroded connector or damaged wiring",
+]
+checks = [
+  "Inspect the throttle body connector",
+  "Clean the throttle body, then do the manufacturer's idle/throttle relearn",
+  "Throttle position should move smoothly with no jumps as the pedal is pressed",
+]
+watch = ["0111", "0145", "0147", "014C"]
+
+[[entry]]
+codes = ["P2138"]
+severity = "soon"
+summary = "The two accelerator pedal position sensors disagree. The car usually goes into reduced-power mode."
+causes = ["Worn accelerator pedal sensor (replaced as a pedal assembly)", "Wiring or connector fault at the pedal"]
+checks = ["Pedal D and E readings should rise together smoothly as you press the pedal"]
+watch = ["0149", "014A"]
+
+[[entry]]
+codes = ["P0125", "P0128"]
+severity = "monitor"
+summary = "The engine takes too long to warm up, or never reaches normal temperature."
+causes = [
+  "Thermostat stuck open (by far the most common)",
+  "Faulty coolant temperature sensor",
+  "Low coolant level",
+]
+checks = [
+  "Coolant should reach roughly 85–105 °C within 10–15 minutes of driving",
+  "Weak cabin heat and worse fuel economy are typical symptoms",
+]
+watch = ["0105"]
+
+# ---------------------------------------------------------------- oxygen sensors
+
+[[entry]]
+codes = ["P0130", "P0131", "P0132", "P0133", "P0134", "P0150", "P0151", "P0152", "P0153", "P0154"]
+severity = "monitor"
+summary = "An upstream oxygen sensor (before the catalytic converter) is faulty or its signal is abnormal. This sensor is used for fuel control."
+causes = [
+  "Aged or contaminated O2 sensor",
+  "Exhaust leak before the sensor",
+  "Damaged sensor wiring",
+  "A real lean (low voltage) or rich (high voltage) condition rather than a bad sensor",
+]
+checks = [
+  "Look for exhaust leaks at the manifold",
+  "Check fuel trims: large trims point to a real fuelling problem, not the sensor",
+  "A healthy narrow-band upstream sensor switches rapidly between about 0.1 and 0.9 V at warm idle",
+  "Fix before long trips: running rich hurts economy and the catalytic converter",
+]
+watch = ["0114", "0118", "0106", "0107"]
+
+[[entry]]
+codes = ["P0136", "P0137", "P0138", "P0139", "P0140", "P0156", "P0157", "P0158"]
+severity = "low"
+summary = "A downstream oxygen sensor (after the catalytic converter) is faulty. It mainly monitors the converter and has little effect on how the engine runs."
+causes = ["Failed O2 sensor", "Damaged wiring or connector", "Exhaust leak near the sensor"]
+checks = ["A downstream sensor should read fairly steady (often 0.5–0.8 V) once the converter is warm"]
+watch = ["0115", "0119"]
+
+[[entry]]
+codes = ["P2195", "P2196"]
+severity = "monitor"
+summary = "The upstream O2 sensor signal is stuck lean or rich."
+causes = [
+  "Aged O2 sensor",
+  "A real lean condition (vacuum leak, exhaust leak) or rich condition (leaking injector)",
+]
+checks = ["Check fuel trims and look for vacuum/exhaust leaks before replacing the sensor"]
+watch = ["0114", "0106", "0107"]
+
+[[entry]]
+codes = ["P2270", "P2271"]
+severity = "low"
+summary = "The downstream O2 sensor signal is stuck lean or rich."
+causes = ["Failed downstream O2 sensor", "Exhaust leak near the sensor", "Catalytic converter problem"]
+checks = ["Look for exhaust leaks around the converter and sensor"]
+watch = ["0115"]
+
+# ---------------------------------------------------------------- fuel trim
+
+[[entry]]
+codes = ["P0171", "P0174", "P2187"]
+severity = "soon"
+summary = "The engine is running lean: too much air or not enough fuel, and the computer has run out of room to correct it."
+causes = [
+  "Vacuum leak (cracked hose, PCV valve/hose, intake manifold gasket)",
+  "Dirty or failing MAF sensor",
+  "Weak fuel pump, clogged fuel filter, or low fuel pressure",
+  "Clogged fuel injectors",
+  "Exhaust leak before the upstream O2 sensor",
+]
+checks = [
+  "Add short- and long-term trims together: above about +10% means the computer is adding fuel",
+  "High at idle but better at 2,500 rpm points to a vacuum leak",
+  "High at all speeds points to fuel delivery or the MAF",
+  "Listen for hissing around the intake; a smoke test finds leaks quickly",
+]
+watch = ["0106", "0107", "0108", "0109", "0110"]
+
+[[entry]]
+codes = ["P0172", "P0175", "P2188"]
+severity = "soon"
+summary = "The engine is running rich: too much fuel, and the computer can't pull enough out."
+causes = [
+  "Leaking fuel injector",
+  "Fuel pressure too high (faulty regulator)",
+  "MAF reading too high (contaminated sensor)",
+  "Coolant sensor reading cold",
+  "Severely clogged air filter",
+]
+checks = [
+  "Trims well below about -10% mean the computer is removing fuel",
+  "Check the air filter",
+  "Check coolant temperature reads correctly when warm",
+]
+watch = ["0106", "0107", "0108", "0109", "0110", "0105"]
+
+[[entry]]
+codes = ["P0191", "P0192", "P0193"]
+severity = "soon"
+summary = "The fuel rail pressure sensor signal is out of range."
+causes = ["Faulty rail pressure sensor", "Wiring or connector fault", "An actual fuel pressure problem"]
+checks = ["Compare rail pressure with the engine off, at idle, and under load"]
+watch = ["0123"]
+
+[[entry]]
+codes = ["P0201-P0208"]
+severity = "soon"
+summary = "The computer sees an electrical fault in one fuel injector circuit. That cylinder will likely misfire."
+causes = ["Failed injector coil", "Damaged connector or wiring", "Injector driver fault in the engine computer (rare)"]
+checks = [
+  "Measure injector resistance and compare with the other injectors",
+  "Inspect the injector connector for corrosion or a broken lock tab",
+]
+
+[[entry]]
+codes = ["P0230"]
+severity = "soon"
+summary = "Fault in the fuel pump control circuit. The car may stall or fail to start."
+causes = ["Fuel pump relay", "Blown fuse", "Wiring fault", "Fuel pump driver module"]
+checks = ["Check the fuel pump fuse and relay", "Listen for the pump priming when the key turns on"]
+
+# ---------------------------------------------------------------- engine protection
+
+[[entry]]
+codes = ["P0217"]
+severity = "stop"
+summary = "The engine is overheating."
+causes = [
+  "Low coolant from a leak",
+  "Cooling fan not running",
+  "Thermostat stuck closed",
+  "Failing water pump",
+  "Clogged radiator",
+  "Head gasket failure",
+]
+checks = [
+  "Pull over and turn the engine off; driving an overheating engine can warp the head",
+  "Never open a hot radiator cap",
+  "Once cool, check the coolant level and look for leaks",
+  "Check that the cooling fans run when the engine is hot",
+]
+watch = ["0105"]
+
+[[entry]]
+codes = ["P0219"]
+severity = "monitor"
+summary = "Engine speed went above the safe limit."
+causes = ["Over-revving (a missed shift or aggressive downshift)", "Wheelspin on a slippery surface"]
+checks = ["A one-off event can be cleared; if it keeps returning without over-revving, have the crank sensor checked"]
+
+[[entry]]
+codes = ["P0234"]
+severity = "soon"
+summary = "Turbo boost pressure went higher than allowed. The engine usually cuts power to protect itself."
+causes = ["Wastegate stuck closed", "Faulty boost control solenoid", "Disconnected or split wastegate vacuum line", "Faulty boost pressure sensor"]
+checks = ["Inspect the wastegate actuator and its hoses", "Avoid full throttle until it's fixed"]
+watch = ["010B"]
+
+[[entry]]
+codes = ["P0299"]
+severity = "soon"
+summary = "The turbo isn't making as much boost as requested. Expect low power."
+causes = [
+  "Boost leak (split intercooler hose, loose clamp)",
+  "Wastegate stuck open",
+  "Faulty boost control solenoid",
+  "Failing turbocharger",
+]
+checks = [
+  "Inspect intercooler pipes and couplers for oil residue or splits",
+  "Listen for whistling or hissing under boost",
+]
+watch = ["010B", "0133"]
+
+[[entry]]
+codes = ["P0520", "P0521"]
+severity = "soon"
+summary = "The oil pressure sensor/switch signal is faulty. This could be a sensor fault or real low oil pressure."
+causes = ["Faulty oil pressure sensor or switch (a common leak point too)", "Wiring or connector fault", "Actual low oil pressure or level"]
+checks = [
+  "Check the oil level right away",
+  "If the oil light is on or the engine is ticking or knocking, stop driving",
+  "Have oil pressure confirmed with a mechanical gauge",
+]
+
+[[entry]]
+codes = ["P0524"]
+severity = "stop"
+summary = "Engine oil pressure is too low."
+causes = [
+  "Low oil level",
+  "Worn oil pump or clogged pickup screen",
+  "Worn engine bearings",
+  "Wrong oil viscosity",
+  "Faulty oil pressure sensor",
+]
+checks = [
+  "Stop the engine as soon as it's safe: low oil pressure destroys bearings within minutes",
+  "Check the oil level",
+  "Don't drive it again until oil pressure is confirmed with a mechanical gauge",
+]
+
+# ---------------------------------------------------------------- misfire / ignition
+
+[[entry]]
+codes = ["P0300"]
+severity = "soon"
+summary = "Random or multiple cylinders are misfiring. If the check-engine light is FLASHING, stop: severe misfires overheat and destroy the catalytic converter."
+causes = [
+  "Worn spark plugs",
+  "Failing ignition coils",
+  "Vacuum leak",
+  "Low fuel pressure",
+  "EGR fault",
+  "Low compression",
+]
+checks = [
+  "Check when the plugs were last replaced",
+  "Check fuel trims for a lean condition",
+  "Note whether it happens at idle, under load, or when cold",
+]
+watch = ["0106", "0107", "0104", "010C"]
+
+[[entry]]
+codes = ["P0301-P0308"]
+severity = "soon"
+summary = "One cylinder is misfiring. If the check-engine light is FLASHING, stop: severe misfires overheat and destroy the catalytic converter."
+causes = [
+  "Worn or fouled spark plug",
+  "Failed ignition coil",
+  "Clogged or failed fuel injector",
+  "Vacuum leak near that cylinder",
+  "Low compression (valve, ring or head gasket)",
+]
+checks = [
+  "Swap that cylinder's coil with a neighbour's, clear codes, drive: if the misfire moves, replace the coil",
+  "Pull and inspect the spark plug",
+  "If the misfire stays put after swapping coil and plug, have a compression test done",
+]
+watch = ["0106", "0107", "010C"]
+
+[[entry]]
+codes = ["P0351-P0358"]
+severity = "soon"
+summary = "Electrical fault in one ignition coil circuit (coil A = cylinder 1, B = 2, and so on). That cylinder will misfire."
+causes = ["Failed ignition coil", "Damaged connector or wiring", "Coil driver fault in the engine computer (rare)"]
+checks = ["Swap the coil with another cylinder and see if the code follows it", "Inspect the connector"]
+
+[[entry]]
+codes = ["P0320", "P0335", "P0336"]
+severity = "soon"
+summary = "The engine speed/crankshaft position signal is missing or erratic. The engine can stall or fail to start without warning."
+causes = ["Failing crankshaft position sensor", "Damaged wiring or connector", "Damaged reluctor/tone ring", "Metal debris on the sensor tip"]
+checks = [
+  "Watch RPM for dropouts or jumps while the engine runs",
+  "Symptoms often get worse when the engine is hot",
+]
+watch = ["010C"]
+
+[[entry]]
+codes = ["P0340", "P0341", "P0345"]
+severity = "soon"
+summary = "The camshaft position sensor signal is missing or incorrect. Starting may take longer, and the engine can stall."
+causes = ["Failing camshaft position sensor", "Wiring or connector fault", "Stretched timing chain (especially P0341)", "Damaged reluctor"]
+checks = ["Inspect the sensor connector for oil intrusion", "If other timing codes are present, check the timing chain"]
+
+[[entry]]
+codes = ["P0325", "P0327", "P0328", "P0330"]
+severity = "monitor"
+summary = "Knock sensor circuit fault. The computer retards ignition timing as a precaution, so power and economy drop."
+causes = ["Failed knock sensor", "Damaged wiring (often under the intake manifold)", "Corroded connector"]
+checks = ["Inspect the knock sensor harness", "Avoid heavy loads and use the recommended fuel octane until fixed"]
+watch = ["010E"]
+
+# ---------------------------------------------------------------- emissions systems
+
+[[entry]]
+codes = ["P0400", "P0401"]
+severity = "low"
+summary = "Too little exhaust gas recirculation (EGR) flow was detected."
+causes = [
+  "Carbon-clogged EGR passages or valve (most common)",
+  "Failed EGR valve",
+  "Vacuum or solenoid fault on vacuum-operated valves",
+  "On older Fords: the DPFE pressure sensor or its hoses",
+]
+checks = ["Clean the EGR valve and passages", "Inspect EGR vacuum lines and the pressure sensor hoses"]
+watch = ["012C", "012D"]
+
+[[entry]]
+codes = ["P0402", "P0403", "P0404"]
+severity = "monitor"
+summary = "EGR flow is excessive, or the EGR control circuit is faulty. Excess EGR can cause rough idle or stalling."
+causes = ["EGR valve stuck open", "EGR solenoid or wiring fault", "EGR position sensor fault"]
+checks = ["Rough idle that improves when the EGR is unplugged points to a stuck-open valve"]
+watch = ["012C", "012D"]
+
+[[entry]]
+codes = ["P0410", "P0411", "P2440"]
+severity = "low"
+summary = "The secondary air injection system (which pumps air into the exhaust on cold starts) isn't working correctly."
+causes = ["Failed air pump (often from moisture)", "Stuck check/switching valve", "Relay or fuse", "Split hoses"]
+checks = ["Listen for the air pump running for about a minute after a cold start"]
+
+[[entry]]
+codes = ["P0420", "P0430"]
+severity = "low"
+summary = "The catalytic converter isn't cleaning the exhaust as well as it should. The car drives normally but will likely fail an emissions inspection."
+causes = [
+  "Aged or worn-out catalytic converter",
+  "Faulty downstream O2 sensor",
+  "Exhaust leak near the sensors",
+  "An engine problem that damaged the converter (misfire, burning oil, running rich)",
+]
+checks = [
+  "Fix any misfire, lean or rich codes first: they cause and mask converter failure",
+  "Compare O2 sensors: the downstream one should be much steadier than the upstream one",
+  "In the US, catalytic converters carry a federal emissions warranty of 8 years / 80,000 miles",
+]
+watch = ["0114", "0115", "0106", "0107"]
+
+[[entry]]
+codes = ["P2096", "P2097"]
+severity = "low"
+summary = "Fuel trim based on the downstream O2 sensor is at its limit."
+causes = ["Exhaust leak", "Aging O2 sensors", "Catalytic converter problem", "An underlying lean/rich condition"]
+checks = ["Look for exhaust leaks", "Check whether P0420/P0430 or fuel trim codes are also present"]
+watch = ["0115", "0106", "0107"]
+
+[[entry]]
+codes = ["P0440", "P0442", "P0455", "P0456", "P0457"]
+severity = "low"
+summary = "The evaporative emissions (EVAP) system found a fuel vapour leak. No effect on driving."
+causes = [
+  "Loose, missing or worn gas cap (check this first)",
+  "Cracked EVAP hose",
+  "Leaking purge or vent valve",
+  "Cracked charcoal canister",
+]
+checks = [
+  "Tighten the gas cap until it clicks, or replace a cap with a cracked seal",
+  "Clear the code; the EVAP test only reruns after several days of normal driving",
+  "A smoke test finds small leaks",
+]
+
+[[entry]]
+codes = ["P0441", "P0443"]
+severity = "low"
+summary = "The EVAP purge valve isn't flowing correctly, or its circuit is faulty."
+causes = ["Failed purge solenoid (often stuck open)", "Wiring or connector fault", "Cracked purge hose"]
+checks = ["Hard starting right after refuelling is a common sign of a stuck-open purge valve"]
+
+[[entry]]
+codes = ["P0446", "P0449"]
+severity = "low"
+summary = "The EVAP vent valve or its circuit is faulty."
+causes = ["Vent valve clogged with dirt or debris", "Failed vent solenoid", "Wiring fault"]
+checks = [
+  "Trouble filling the tank (pump nozzle clicking off early) is a common sign",
+  "Inspect the vent valve near the charcoal canister",
+]
+
+[[entry]]
+codes = ["P0451", "P0452", "P0453"]
+severity = "low"
+summary = "The fuel tank pressure sensor signal is out of range."
+causes = ["Faulty tank pressure sensor", "Wiring or connector fault", "Actual EVAP pressure problem"]
+checks = ["Inspect the sensor connector on or near the fuel tank"]
+
+[[entry]]
+codes = ["P0461", "P0462", "P0463"]
+severity = "monitor"
+summary = "The fuel level sensor signal is faulty. The fuel gauge may be wrong, so it's easy to run out."
+causes = ["Worn fuel level sender in the tank", "Wiring or connector fault"]
+checks = ["Track fuel by trip distance until fixed", "Compare the gauge with the fuel-level reading here"]
+watch = ["012F"]
+
+[[entry]]
+codes = ["P0480"]
+severity = "soon"
+summary = "Fault in the cooling fan control circuit. The engine can overheat in traffic or at idle."
+causes = ["Fan relay", "Blown fuse", "Failed fan motor", "Fan control module or wiring fault"]
+checks = [
+  "With the engine hot or the A/C on, the fan should run",
+  "Watch the coolant temperature in slow traffic",
+]
+watch = ["0105"]
+
+# ---------------------------------------------------------------- speed / idle / electrical
+
+[[entry]]
+codes = ["P0500", "P0501"]
+severity = "soon"
+summary = "The vehicle speed signal is missing or implausible. Speedometer, shifting, cruise control and ABS may be affected."
+causes = ["Faulty vehicle speed sensor (or an ABS wheel speed sensor on many cars)", "Wiring or connector fault", "Damaged tone ring"]
+checks = ["Compare the speed reading here with GPS speed", "Check for ABS codes as well"]
+watch = ["010D"]
+
+[[entry]]
+codes = ["P0505", "P0506", "P0507"]
+severity = "monitor"
+summary = "Idle speed isn't what the computer is targeting."
+causes = [
+  "Dirty throttle body or idle air control valve",
+  "Vacuum leak (especially P0507, high idle)",
+  "PCV valve problem",
+]
+checks = ["Clean the throttle body, then do the idle relearn procedure", "Check for vacuum leaks"]
+watch = ["010C", "0111", "0106", "0107"]
+
+[[entry]]
+codes = ["P0530"]
+severity = "low"
+summary = "A/C refrigerant pressure sensor fault. The A/C may not work."
+causes = ["Faulty pressure sensor", "Wiring fault", "Low refrigerant charge"]
+checks = ["Inspect the sensor connector on the A/C line"]
+
+[[entry]]
+codes = ["P0562"]
+severity = "soon"
+summary = "System voltage is too low. It can leave you stranded and cause odd faults in other modules."
+causes = [
+  "Weak or failing battery",
+  "Failing alternator",
+  "Loose or corroded battery terminals",
+  "Bad engine or body ground",
+]
+checks = [
+  "Battery should read about 12.4–12.7 V with the engine off",
+  "About 13.5–14.7 V with the engine running (see the ⚡ voltage in the status bar)",
+  "Clean and tighten the battery terminals",
+]
+watch = ["0142"]
+
+[[entry]]
+codes = ["P0563"]
+severity = "soon"
+summary = "System voltage is too high. Overcharging can damage the battery and electronics."
+causes = ["Failed alternator voltage regulator", "Bad voltage sense wire or ground"]
+checks = ["Voltage running should not exceed about 15 V"]
+watch = ["0142"]
+
+[[entry]]
+codes = ["P0571"]
+severity = "soon"
+summary = "Brake switch circuit fault. Brake lights may not work, cruise control is usually disabled, and the shifter may not leave Park."
+causes = ["Faulty or misadjusted brake light switch", "Blown fuse", "Wiring fault"]
+checks = ["Have someone confirm the brake lights come on when the pedal is pressed"]
+
+[[entry]]
+codes = ["P0600", "P0601", "P0602", "P0603", "P0604", "P0605", "P0606"]
+severity = "soon"
+summary = "The engine computer has detected an internal or communication fault."
+causes = [
+  "Low battery voltage or a bad ground (rule this out first)",
+  "Interrupted programming or software issue (P0602: often fixed by a dealer reflash)",
+  "Failed engine computer",
+]
+checks = [
+  "Check battery voltage and the main ground straps",
+  "Ask a dealer about software updates for your VIN before replacing the module",
+  "P0603 alone after a battery disconnect often clears itself",
+]
+watch = ["0142"]
+
+[[entry]]
+codes = ["P0620", "P0622"]
+severity = "soon"
+summary = "Fault in the alternator (generator) control circuit. The battery may not be charging."
+causes = ["Failing alternator", "Wiring or connector fault at the alternator", "Blown fusible link"]
+checks = ["Running voltage should be about 13.5–14.7 V"]
+watch = ["0142"]
+
+[[entry]]
+codes = ["P0641"]
+severity = "soon"
+summary = "The 5-volt sensor reference circuit is out of range. Several sensors can fail at once, often causing limp mode."
+causes = ["A shorted sensor on the shared 5 V reference circuit", "Chafed wiring", "Engine computer fault (rare)"]
+checks = ["Unplug sensors on that circuit one at a time; the code clearing points to the shorted one"]
+
+[[entry]]
+codes = ["P0650"]
+severity = "low"
+summary = "Fault in the check-engine light circuit. The light may not warn you of new problems."
+causes = ["Failed bulb/LED driver in the cluster", "Wiring fault"]
+checks = ["Check that the light comes on briefly at key-on", "Scan for codes periodically until fixed"]
+
+# ---------------------------------------------------------------- transmission
+
+[[entry]]
+codes = ["P0700"]
+severity = "soon"
+summary = "The transmission computer has stored a fault and asked for the check-engine light. The real code is in the transmission module."
+causes = ["Any transmission fault; see the codes listed from the transmission module (often 7E9)"]
+checks = [
+  "Look for codes from the TCM in this list; they explain the actual problem",
+  "Check the transmission fluid level and condition",
+]
+
+[[entry]]
+codes = ["P0705", "P0706"]
+severity = "soon"
+summary = "Transmission range (PRNDL) sensor fault. The car may not start in Park, show the wrong gear, or shift harshly."
+causes = ["Faulty or misadjusted range sensor/switch", "Wiring or connector fault", "Worn shift linkage or cable"]
+checks = ["Check that the dash gear display matches the lever in every position"]
+
+[[entry]]
+codes = ["P0710", "P0711", "P0712", "P0713"]
+severity = "monitor"
+summary = "Transmission fluid temperature sensor fault. Shifts may be harsh and torque converter lockup may be disabled."
+causes = ["Faulty fluid temperature sensor (often on the internal harness)", "Wiring or connector fault", "Overheated or degraded fluid"]
+checks = ["Check fluid level and condition"]
+
+[[entry]]
+codes = ["P0715", "P0717", "P0720"]
+severity = "soon"
+summary = "A transmission speed sensor signal is missing. Expect erratic shifting or limp mode (stuck in one gear)."
+causes = ["Faulty speed sensor", "Wiring or connector fault", "Metal debris on the magnetic sensor tip", "Low fluid level"]
+checks = ["Check fluid level", "Inspect the sensor and connector"]
+
+[[entry]]
+codes = ["P0730-P0736"]
+severity = "soon"
+summary = "The transmission's measured gear ratio is wrong: it's slipping or not in the gear it should be. Continuing to drive can make internal damage worse."
+causes = [
+  "Low or burnt transmission fluid (check first)",
+  "Worn clutch packs or bands",
+  "Faulty shift solenoid or valve body",
+  "Faulty speed sensor",
+]
+checks = [
+  "Check fluid level and condition using the manufacturer's procedure (dark or burnt-smelling fluid is a bad sign)",
+  "Drive gently until it's diagnosed",
+]
+
+[[entry]]
+codes = ["P0740", "P0741"]
+severity = "soon"
+summary = "The torque converter clutch isn't engaging (or its circuit is faulty). This raises fluid temperature and hurts fuel economy."
+causes = ["Faulty torque converter clutch solenoid", "Low or contaminated fluid", "Worn torque converter", "Valve body problem"]
+checks = ["Check fluid level and condition", "At steady highway speed with lockup, RPM should drop slightly"]
+watch = ["010C", "010D"]
+
+[[entry]]
+codes = ["P0750", "P0755", "P0760", "P0765"]
+severity = "soon"
+summary = "Shift solenoid fault. The transmission may be stuck in one gear or shift poorly."
+causes = ["Failed shift solenoid", "Wiring or connector fault", "Contaminated fluid", "Valve body problem"]
+checks = ["Check fluid level and condition", "Inspect the transmission connector for fluid wicking into it"]
+
+[[entry]]
+codes = ["P0868"]
+severity = "soon"
+summary = "Transmission fluid pressure is low. Low pressure makes clutches slip and can damage the transmission quickly."
+causes = ["Low fluid level", "Clogged filter", "Worn pump", "Faulty pressure sensor or solenoid"]
+checks = ["Check the fluid level immediately", "Avoid hard acceleration until it's diagnosed"]
+
+# ---------------------------------------------------------------- network
+
+[[entry]]
+codes = ["U0001"]
+severity = "soon"
+summary = "Problem on the high-speed CAN network that the modules use to talk to each other. Many systems may act strangely at once."
+causes = [
+  "Low battery voltage",
+  "Damaged or corroded wiring or connectors (water intrusion, accident damage)",
+  "A failed module disrupting the network",
+  "Poorly installed aftermarket accessories (remote start, alarms)",
+]
+checks = [
+  "Check battery voltage first",
+  "Think about any recent repairs, accessory installs or water leaks",
+  "Note which modules report U-codes; the one they all lost contact with is the suspect",
+]
+watch = ["0142"]
+
+[[entry]]
+codes = ["U0100", "U0101"]
+severity = "soon"
+summary = "A module lost communication with the engine or transmission computer."
+causes = [
+  "A brief low-voltage event (weak battery, jump start, battery change)",
+  "Loose or corroded connector at the engine/transmission computer",
+  "CAN wiring fault",
+  "Failed engine/transmission computer",
+]
+checks = [
+  "If the car drives normally, test the battery, clear codes and see if it returns",
+  "Check the connectors and grounds at the module",
+]
+watch = ["0142"]
+
+[[entry]]
+codes = ["U0121"]
+severity = "soon"
+summary = "Lost communication with the ABS module. ABS and stability control are likely disabled."
+causes = ["Low battery voltage", "ABS module connector or wiring", "Failed ABS module"]
+checks = ["Check whether the ABS/traction warning lights are on", "Drive carefully on slippery roads until fixed"]
+
+[[entry]]
+codes = ["U0140", "U0155"]
+severity = "monitor"
+summary = "Lost communication with the body control module or instrument cluster. Lights, locks or gauges may misbehave."
+causes = ["Low battery voltage", "Connector or wiring fault", "Failed module"]
+checks = ["Check battery voltage", "Note which features stopped working"]
+
+[[entry]]
+codes = ["U0151"]
+severity = "soon"
+summary = "Lost communication with the airbag (restraints) module. The airbags may not deploy in a crash."
+causes = ["Connector or wiring fault (often under a seat)", "Low battery voltage", "Failed restraints module"]
+checks = ["Check whether the airbag warning light is on", "Have it repaired promptly: this is a safety system"]
