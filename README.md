@@ -10,7 +10,7 @@ your car, join its Wi-Fi, and get a live dashboard, check-engine-light trouble c
 in plain English, readiness monitors, freeze frame, VIN/calibration info, manufacturer
 (Mode 22) PIDs, CSV logging and a raw command console. Runs on macOS and Linux.
 
-**Website:** [jeffcaldwellca.github.io/elm327-obd](https://jeffcaldwellca.github.io/elm327-obd/), with an
+**Website:** [jeffcaldwell.ca/elm327-obd](https://www.jeffcaldwell.ca/elm327-obd/), with an
 online trouble-code lookup.
 
 ![Live dashboard: RPM, speed, coolant, load, throttle, MAP, fuel trims and voltage with sparklines](https://raw.githubusercontent.com/jeffcaldwellca/elm327-obd/main/docs/images/dashboard.png)
