@@ -34,7 +34,8 @@ classifiers = [
 dependencies = ["textual>=8.2"]
 
 [project.urls]
-Homepage = "https://github.com/jeffcaldwellca/elm327-obd"
+Homepage = "https://jeffcaldwellca.github.io/elm327-obd/"
+Source = "https://github.com/jeffcaldwellca/elm327-obd"
 Issues = "https://github.com/jeffcaldwellca/elm327-obd/issues"
 Changelog = "https://github.com/jeffcaldwellca/elm327-obd/releases"
 

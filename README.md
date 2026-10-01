@@ -10,6 +10,9 @@ your car, join its Wi-Fi, and get a live dashboard, check-engine-light trouble c
 in plain English, readiness monitors, freeze frame, VIN/calibration info, manufacturer
 (Mode 22) PIDs, CSV logging and a raw command console. Runs on macOS and Linux.
 
+**Website:** [jeffcaldwellca.github.io/elm327-obd](https://jeffcaldwellca.github.io/elm327-obd/), with an
+online trouble-code lookup.
+
 ![Live dashboard: RPM, speed, coolant, load, throttle, MAP, fuel trims and voltage with sparklines](https://raw.githubusercontent.com/jeffcaldwellca/elm327-obd/main/docs/images/dashboard.png)
 
 ## Features
@@ -210,7 +213,8 @@ module configuration with a suitable adapter.
 
 Layout: `transport.py` (TCP + prompt handling) → `protocol.py` (frame / ISO-TP parsing) →
 `elm.py` (client: Mode 01/02/03/04/07/09/0A/22) → `tui/` (Textual app). `pids.py`, `dtc.py`
-and `profiles.py` hold the decoders.
+and `profiles.py` hold the decoders. The GitHub Pages site lives in `docs/`; after changing the
+trouble-code guidance or names, regenerate its data with `.venv/bin/python tools/build_site_data.py`.
 
 ## Contributing
 

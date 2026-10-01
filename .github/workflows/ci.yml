@@ -20,3 +20,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest -q
+      - name: Site code data is up to date
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14'
+        run: |
+          python tools/build_site_data.py
+          git diff --exit-code docs/dtc.json || { echo "::error::Run tools/build_site_data.py and commit docs/dtc.json"; exit 1; }
