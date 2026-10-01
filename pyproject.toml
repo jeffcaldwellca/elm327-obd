@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "elm327obd"
-version = "0.1.0"
+version = "0.1.1"
 description = "OBD2 car diagnostics in your terminal for ELM327 WiFi adapters: live data, trouble codes, readiness, Mode 22"
 readme = "README.md"
 license = "GPL-2.0-or-later"

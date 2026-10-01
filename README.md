@@ -1,7 +1,8 @@
 # elm327obd: OBD2 car diagnostics in your terminal
 
 [![CI](https://github.com/jeffcaldwellca/elm327-obd/actions/workflows/ci.yml/badge.svg)](https://github.com/jeffcaldwellca/elm327-obd/actions/workflows/ci.yml)
-[![License: GPL v2+](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
+[![License: GPL v2+](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](https://github.com/jeffcaldwellca/elm327-obd/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/elm327obd.svg)](https://pypi.org/project/elm327obd/)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
 ![macOS | Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)
 
@@ -31,6 +32,15 @@ online trouble-code lookup.
 
 ## Install
 
+With [pipx](https://pipx.pypa.io/) (or `uv tool install elm327obd`):
+
+```bash
+pipx install elm327obd
+obd --demo            # try it without a car
+```
+
+Or from a clone, which also sets up the test suite:
+
 ```bash
 git clone https://github.com/jeffcaldwellca/elm327-obd.git
 cd elm327-obd
@@ -40,7 +50,7 @@ cd elm327-obd
 ```
 
 Needs Python 3.11+ and internet access for the first install (it downloads Textual).
-It's safe to re-run; it reuses `.venv`.
+`setup.sh` is safe to re-run; it reuses `.venv`.
 
 | Platform | Status |
 |---|---|
@@ -225,5 +235,5 @@ issue template.
 
 ## License
 
-[GPL-2.0-or-later](LICENSE). The bundled python-OBD code-name data is GPL-2.0 as well; see
-[Third-party data and licensing](#third-party-data-and-licensing).
+[GPL-2.0-or-later](https://github.com/jeffcaldwellca/elm327-obd/blob/main/LICENSE). The bundled python-OBD code-name data is GPL-2.0 as well; see
+[Third-party data and licensing](https://github.com/jeffcaldwellca/elm327-obd#third-party-data-and-licensing).

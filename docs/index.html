@@ -374,18 +374,16 @@ footer p { margin: 0 0 0.4rem; max-width: 52rem; }
     <div class="wrap install">
       <div>
         <h2 class="section-title" id="install-title">Install</h2>
-        <p>You need Python 3.11 or newer. The setup script creates a virtualenv, installs the one
-          dependency (<a href="https://textual.textualize.io/">Textual</a>) and puts an
-          <code>obd</code> command on your path.</p>
+        <p>You need Python 3.11 or newer. Install it from PyPI with
+          <a href="https://pipx.pypa.io/">pipx</a> (or <code>uv tool install elm327obd</code>) and you get
+          an <code>obd</code> command. To hack on it, clone the repo and run <code>./setup.sh</code>.</p>
         <ul class="platforms">
           <li>macOS: tested. <code>brew install python</code> if you need it.</li>
           <li>Linux: tested on Debian 12. Debian/Ubuntu also need <code>python3-venv</code>.</li>
           <li>Windows: not supported; WSL is untested.</li>
         </ul>
       </div>
-      <pre><code>git clone https://github.com/jeffcaldwellca/elm327-obd.git
-cd elm327-obd
-./setup.sh
+      <pre><code>pipx install elm327obd
 
 <span class="c"># try it without a car</span>
 obd --demo
